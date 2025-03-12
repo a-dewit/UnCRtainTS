@@ -27,6 +27,7 @@ class CircaPatchDataSet(Dataset):
         load_dataset: Optional[str] = None,
         shuffle: bool = False,
         use_SAR: bool = True,
+        no_filter: bool = False,
     ):
         """
         Initializes the dataset.
@@ -49,6 +50,7 @@ class CircaPatchDataSet(Dataset):
         self.zones_dataset, self.dates_dict = None, None
         self.patches_dataset = None
         self.use_SAR = use_SAR
+        self.no_filter = no_filter
         self.setup()
 
     def __len__(self) -> int:
@@ -96,6 +98,15 @@ class CircaPatchDataSet(Dataset):
         self.patches_dataset[cols_to_convert] = self.patches_dataset[
             cols_to_convert
         ].applymap(ast.literal_eval)
+
+        if ds.patches_dataset.loc[0, "window"][2] != self.patch_size:
+            print(
+                """
+                WARNING : Patch size load in the .csv file is not corresponding to the patch size requested 
+                during the dataset initialization. New setup of the dataset will be done.."
+                """
+            )
+            self.setup()
 
         # Recreate the dates dictionary after loading
         self.dates_dict = {
@@ -190,9 +201,9 @@ class CircaPatchDataSet(Dataset):
                 tif_files["S1_DESC"] = file
 
         list_windows = SentinelDataProcessor.split_raster_into_windows(
-            tif_files["S2"],
-            self.patch_size,
-            self.overlap,
+            path_raster=tif_files["S2"],
+            patch_size=self.patch_size,
+            overlap=self.overlap,
         )
 
         self.dates_dict[mgrs25_name]["S1"] = {
@@ -239,14 +250,19 @@ class CircaPatchDataSet(Dataset):
             patch_data.files[0], patch_window
         )  # Extraction données S2
 
-        (
-            patch_S2_curated,
-            dates_S2_curated,
-            cloud_masks,
-        ) = SentinelDataProcessor.extract_and_transform_S2(
-            patch_S2_array,
-            self.dates_dict[patch_data.mgrs25]["S2"],
-        )
+        if self.no_filter:
+            patch_S2_curated = patch_S2_array[:, :, :, 0:10]
+            dates_S2_curated = np.asarray(self.dates_dict[patch_data.mgrs25]["S2"])
+            cloud_masks = patch_S2_array[:, :, :, 10]
+        else:
+            (
+                patch_S2_curated,
+                dates_S2_curated,
+                cloud_masks,
+            ) = SentinelDataProcessor.extract_and_transform_S2(
+                patch_S2_array,
+                self.dates_dict[patch_data.mgrs25]["S2"],
+            )
 
         sample = {
             "name": patch_data.patch,
@@ -313,13 +329,13 @@ class UnCRtainTSDataset(CircaPatchDataSet):
         - use_SAR (bool, optional): Whether to include SAR data in the dataset. Defaults to True.
         """
         super(UnCRtainTSDataset, self).__init__(
-            data_optique,
-            data_radar,
-            patch_size,
-            overlap,
-            load_dataset,
-            shuffle,
-            use_SAR,
+            data_optique=data_optique,
+            data_radar=data_radar,
+            patch_size=patch_size,
+            overlap=overlap,
+            load_dataset=load_dataset,
+            shuffle=shuffle,
+            use_SAR=use_SAR,
         )
 
     def __getitem__(self, item: int) -> Dict[str, Union[np.ndarray, str, List[str]]]:
@@ -385,10 +401,10 @@ if __name__ == "__main__":
     path_dataset_CIRCA = store_dai / "projets/pac/3str/EXP_2"
     data_optique = path_dataset_CIRCA / "Data_Raster" / "optique_dataset"
     data_radar = path_dataset_CIRCA / "Data_Raster" / "radar_dataset_v2"
-    patch_size = 256
+    patch_size = 128
     overlap = 0
-
-    ds = UnCRtainTSDataset(
+    ds = CircaPatchDataSet(
+        # ds = UnCRtainTSDataset(
         data_optique=data_optique,
         data_radar=data_radar,
         patch_size=patch_size,

@@ -138,9 +138,9 @@ class SentinelDataProcessor:
         """
         with rasterio.open(path_raster) as dataset:
             return SentinelDataProcessor.get_img_windows_list(
-                (dataset.height, dataset.width),
-                patch_size,
-                overlap,
+                img_shape=(dataset.height, dataset.width),
+                tile_size=patch_size,
+                overlap=overlap,
             )
 
     @staticmethod
@@ -158,7 +158,7 @@ class SentinelDataProcessor:
 
     @staticmethod
     def cloud_mask_correction(
-        input_mask: np.ndarray, threshold: int = 75
+        input_mask: np.ndarray, threshold: int = 50
     ) -> np.ndarray:
         """
         Corrects cloud masks by identifying and removing inconsistent pixels based on temporal statistics.
@@ -174,7 +174,7 @@ class SentinelDataProcessor:
         - np.ndarray: Corrected cloud masks with the same shape as input_mask.
         """
 
-        def binarize_and_sum_along_time(array: np.ndarray) -> np.ndarray:
+        def compute_persistence_mask(array: np.ndarray) -> np.ndarray:
             """
             Binarizes the input array (non-zero values become 1) and sums along the time axis.
 
@@ -187,25 +187,18 @@ class SentinelDataProcessor:
             binary_array = (array != 0).astype(int)  # Binarisation
             return binary_array.sum(axis=0)
 
-        cloud_mask = input_mask.copy()
-        mask_sum = binarize_and_sum_along_time(cloud_mask)  # Stationnarité temporelle
-
-        percentile_to_keep = threshold
-        pixel_threshold = np.percentile(mask_sum, percentile_to_keep)
-        error_indexes = np.where(mask_sum > pixel_threshold)
-
-        masks_corrected = []
-        for mask in input_mask:
-            mask[error_indexes] = 0
-            masks_corrected.append(mask)
-
-        return np.stack(masks_corrected, axis=0)
+        cloud_masks = input_mask.copy()
+        persistence_mask = compute_persistence_mask(
+            cloud_masks
+        )  # Stationnarité temporelle
+        pixel_threshold = np.percentile(persistence_mask, threshold)
+        error_indexes = np.where(persistence_mask > pixel_threshold)
+        cloud_masks[:, error_indexes[0], error_indexes[1]] = 0
+        return np.stack(cloud_masks, axis=0)
 
     @staticmethod
     def filter_dates(
         masks: np.ndarray,
-        max_cloud_value: int = 10,
-        max_snow_value: int = 10,
         max_fraction_covered: float = 0.05,
     ) -> np.ndarray:
         """
@@ -220,9 +213,10 @@ class SentinelDataProcessor:
         Returns:
         - np.ndarray: Indices of the selected dates.
         """
+        MAX_CLOUD_VALUE = MAX_SNOW_VALUE = 1
         T, H, W, _ = masks.shape
-        select = (masks[:, :, :, 0] <= max_cloud_value) & (
-            masks[:, :, :, 1] <= max_snow_value
+        select = (masks[:, :, :, 0] <= MAX_SNOW_VALUE) & (
+            masks[:, :, :, 1] <= MAX_CLOUD_VALUE
         )
         num_pix = H * W
         threshold = (1 - max_fraction_covered) * num_pix
@@ -236,8 +230,7 @@ class SentinelDataProcessor:
 
     @staticmethod
     def extract_and_transform_S2(
-        S2_array: np.ndarray, 
-        dates: List[str]
+        S2_array: np.ndarray, dates: List[str]
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Extracts and transforms Sentinel-2 data by filtering cloudy dates and correcting cloud masks.
@@ -269,7 +262,7 @@ class SentinelDataProcessor:
         return (
             patch_S2_data[index_S2_curated],
             np.asarray(dates)[index_S2_curated],
-            cloud_masks_corrected,
+            cloud_masks_corrected[index_S2_curated],
         )
 
     @staticmethod
