@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.idea/*
+*.pyc
+**/__pycache__/*
+_build/
+lightning_logs/*
+*.egg-info/
+.installed.cfg
+*.egg
