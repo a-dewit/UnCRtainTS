@@ -9,7 +9,7 @@ from rasterio.windows import Window
 
 # Constants for the number of channels in Sentinel-2 and Sentinel-1 data
 S2_N_CHANNELS = 12
-S1_N_CHANNELS = 2
+S1_N_CHANNELS = 4
 
 
 class SentinelDataProcessor:

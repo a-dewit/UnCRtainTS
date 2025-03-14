@@ -142,7 +142,20 @@ def get_pairedS1(patch_list, root_dir, mod=None, time=None):
 """
 
 class SEN12MSCRTS(Dataset):
-    def __init__(self, root, split="all", region='all', cloud_masks='s2cloudless_mask', sample_type='cloudy_cloudfree', sampler='fixed', n_input_samples=3, rescale_method='default', min_cov=0.0, max_cov=1.0, import_data_path=None, custom_samples=None):
+    def __init__(self, 
+                 root, 
+                 split="all", 
+                 region='all', 
+                 cloud_masks='s2cloudless_mask', 
+                 sample_type='cloudy_cloudfree', 
+                 sampler='fixed', 
+                 n_input_samples=3, 
+                 rescale_method='default', 
+                 min_cov=0.0, 
+                 max_cov=1.0, 
+                 import_data_path=None, 
+                 custom_samples=None,
+                 ):
         
         self.root_dir = root   # set root directory which contains all ROI
         self.region   = region # region according to which the ROI are selected

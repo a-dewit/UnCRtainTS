@@ -233,6 +233,58 @@ class CircaPatchDataSet(Dataset):
         """
         self.patches_dataset.to_csv(outpath, index=False)
 
+    def get_patches_per_mgrs(self, mgrs: str) -> pd.DataFrame:
+        """
+        Retrieves all patches associated with a given MGRS code.
+
+        Parameters:
+        - mgrs (str): The MGRS (Military Grid Reference System) code to filter by.
+
+        Returns:
+        - pd.DataFrame: A DataFrame containing only the patches matching the MGRS code.
+        """
+        return self.patches_dataset[self.patches_dataset["mgrs"] == mgrs]
+
+    def get_patches_per_mgrs25(self, mgrs25: str) -> pd.DataFrame:
+        """
+        Retrieves all patches associated with a given MGRS25 code.
+
+        Parameters:
+        - mgrs25 (str): The MGRS25 code (a more precise version of MGRS) to filter by.
+
+        Returns:
+        - pd.DataFrame: A DataFrame containing only the patches matching the MGRS25 code.
+        """
+        return self.patches_dataset[self.patches_dataset["mgrs25"] == mgrs25]
+
+    def get_patch_item(self, patch_name: str) -> Optional[int]:
+        """
+        Retrieves the index of a patch based on its name.
+
+        Parameters:
+        - patch_name (str): The name of the patch to search for.
+
+        Returns:
+        - Optional[int]: The index of the patch in the DataFrame. Returns None if the patch is not found.
+        """
+        matching_patches = self.patches_dataset[self.patches_dataset["patch"] == patch_name]
+        if not matching_patches.empty:
+            return matching_patches.index.values[0]
+        return None  # Returns None if no matching patch is found
+    
+    def get_random_patch_by_mgrs(self, mgrs: str) -> Dict[str, Union[np.ndarray, str, list]]:
+        """
+        Retrieves a random patch associated with a given MGRS code.
+
+        Parameters:
+        - mgrs (str): The MGRS code to filter by.
+
+        Returns:
+        - Dict[str, Union[np.ndarray, str, List[str]]]: A dictionary containing the data, name, masks, and dates of the randomly selected patch.
+        """
+        df_mgrs = self.get_patches_per_mgrs(mgrs=mgrs)
+        return self.__getitem__(np.random.choice(df_mgrs.index.values))
+
     def __getitem__(self, item: int) -> Dict[str, Union[np.ndarray, str, List[str]]]:
         """
         Retrieves an item from the dataset.
@@ -401,15 +453,13 @@ if __name__ == "__main__":
     path_dataset_CIRCA = store_dai / "projets/pac/3str/EXP_2"
     data_optique = path_dataset_CIRCA / "Data_Raster" / "optique_dataset"
     data_radar = path_dataset_CIRCA / "Data_Raster" / "radar_dataset_v2"
-    patch_size = 128
+    patch_size = 256
     overlap = 0
     ds = CircaPatchDataSet(
-        # ds = UnCRtainTSDataset(
         data_optique=data_optique,
         data_radar=data_radar,
         patch_size=patch_size,
         overlap=overlap,
-        # load_dataset="./datasetCIRCAUnCRtainTS.csv",
     )
 
     # ds.setup()

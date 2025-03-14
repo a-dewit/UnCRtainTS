@@ -8,7 +8,7 @@ from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
 from s2cloudless import S2PixelCloudDetector
 
-from data.dataLoader import SEN12MSCRTS
+from data.dataLoader import *
 
 """ SEN12MSCRTS data loader class, used to load the data in the original format and prepare the data for hdf5 export
 
@@ -184,14 +184,14 @@ class SEN12MSCRTS_to_hdf5(SEN12MSCRTS):
         sample = dict()
 
         if 'S1' in self.modalities:
-            s1 = [self.read_img(os.path.join(self.root_dir, img)) for img in self.paths[pdx]['S1']]
+            s1 = [read_img(os.path.join(self.root_dir, img)) for img in self.paths[pdx]['S1']]
             s1_dates = [img.split('/')[-1].split('_')[5] for img in self.paths[pdx]['S1']]
             sample['S1'] = s1
             sample['S1_dates'] = s1_dates
             sample['S1_paths'] = self.paths[pdx]['S1']
 
         if 'S2' in self.modalities:
-            s2 = [self.read_img(os.path.join(self.root_dir, img)) for img in self.paths[pdx]['S2']]
+            s2 = [read_img(os.path.join(self.root_dir, img)) for img in self.paths[pdx]['S2']]
             s2_dates = [img.split('/')[-1].split('_')[5] for img in self.paths[pdx]['S2']]
             
             cloud_prob = [self.get_cloud_mask(img, 's2cloud_prob') for img in s2]
@@ -205,7 +205,6 @@ class SEN12MSCRTS_to_hdf5(SEN12MSCRTS):
             sample['cloud_mask'] = cloud_mask
 
         return sample
-
     def __len__(self):
         # length of generated list
         return self.n_samples
