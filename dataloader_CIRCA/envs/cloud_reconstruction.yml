@@ -28,6 +28,8 @@ dependencies:
   - ipykernel
   - jupyter
   - ipywidgets
+  - kornia
+  - omegaconf
   - pip:
     - torchgeometry==0.1.2
     - prodict==0.8.18

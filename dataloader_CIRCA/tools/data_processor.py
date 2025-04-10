@@ -230,7 +230,7 @@ class SentinelDataProcessor:
 
     @staticmethod
     def extract_and_transform_S2(
-        S2_array: np.ndarray, dates: List[str]
+        S2_array: np.ndarray, dates: List[str], S2_channels_selected: List[int] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Extracts and transforms Sentinel-2 data by filtering cloudy dates and correcting cloud masks.
@@ -242,7 +242,7 @@ class SentinelDataProcessor:
             - W: Width of the patch.
             - C: Number of spectral bands and masks.
         - dates (List[str]): List of dates corresponding to the time steps in S2_array.
-
+        - S2_channels_selected (List[str]): List of bands index to extract.
         Returns:
         - Tuple[np.ndarray, np.ndarray, np.ndarray]: A tuple containing:
             - patch_S2_data: Filtered Sentinel-2 data with shape (T_filtered, H, W, 10).
@@ -250,11 +250,14 @@ class SentinelDataProcessor:
             - cloud_masks_corrected: Corrected cloud masks with shape (T_filtered, H, W).
         """
         # Filtrage des dates S2 nuageuses
-        patch_S2_data, masks = (
-            S2_array[:, :, :, 0:10],
-            S2_array[:, :, :, -2:],
-        )
+        masks = S2_array[:, :, :, -2:]
         snow_masks, cloud_masks = masks[:, :, :, 0], masks[:, :, :, 1]
+
+        if S2_channels_selected is None:
+            patch_S2_data = S2_array[:, :, :, 0:10]
+        else:
+            patch_S2_data = S2_array[:, :, :, S2_channels_selected]
+
         cloud_masks_corrected = SentinelDataProcessor.cloud_mask_correction(cloud_masks)
         index_S2_curated = SentinelDataProcessor.filter_dates(
             np.stack([snow_masks, cloud_masks_corrected], axis=-1)
@@ -301,18 +304,15 @@ class SentinelDataProcessor:
                 ).days
                 for date_S1 in dates_S1_desc
             ]
-
-            min_asc = np.min(np.abs(deltas_asc))
-            deltas_S1_ASC.append(min_asc)
-            min_desc = np.min(np.abs(deltas_desc))
-            deltas_S1_DESC.append(min_desc)
+            deltas_S1_ASC.append(np.min(np.abs(deltas_asc)))
+            deltas_S1_DESC.append(np.min(np.abs(deltas_desc)))
 
             idx_min_asc = np.argmin(np.abs(deltas_asc))
             index_S1_ASC.append(idx_min_asc)
+            dates_S1_ASC_curated.append(dates_S1_asc[idx_min_asc])
+
             idx_min_desc = np.argmin(np.abs(deltas_desc))
             index_S1_DESC.append(idx_min_desc)
-
-            dates_S1_ASC_curated.append(dates_S1_asc[idx_min_asc])
             dates_S1_DESC_curated.append(dates_S1_desc[idx_min_desc])
 
         if sum(deltas_S1_ASC) <= sum(deltas_S1_DESC):
