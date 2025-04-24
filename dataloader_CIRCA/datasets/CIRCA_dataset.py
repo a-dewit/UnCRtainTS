@@ -5,14 +5,13 @@ from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-import rasterio
+
 
 from rasterio.windows import Window
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
 from dataloader_CIRCA.tools.data_processor import SentinelDataProcessor
-import dataloader_CIRCA.tools.positional_encoding as encodings 
 
 
 class CircaPatchDataSet(Dataset):
