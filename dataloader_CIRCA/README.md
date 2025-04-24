@@ -7,6 +7,7 @@ de données Sentinel-S2 sans nuages.
 TODO:
 -----
 
+Ajout d'un bon datalinter comme ruff
 Avant tout, commencer à bien regarder ce que fait produit le modèle en sortie des fonctions de U-TILISE
 (ensuite relister les étapes de préprocessing)
 -comprendre exactement ce qu'est passé en entrée à la loss et 
