@@ -2,9 +2,10 @@
 Taken from https://github.com/TUM-LMF/MTLCC-pytorch/blob/master/src/models/convlstm/convlstm.py
 authors: TUM-LMF
 """
-import torch.nn as nn
-from torch.autograd import Variable
+
 import torch
+from torch import nn
+from torch.autograd import Variable
 
 
 class ConvLSTMCell(nn.Module):
@@ -26,7 +27,7 @@ class ConvLSTMCell(nn.Module):
             Whether or not to add the bias.
         """
 
-        super(ConvLSTMCell, self).__init__()
+        super().__init__()
 
         self.height, self.width = input_size
         self.input_dim = input_dim
@@ -86,7 +87,7 @@ class ConvLSTM(nn.Module):
         bias=True,
         return_all_layers=False,
     ):
-        super(ConvLSTM, self).__init__()
+        super().__init__()
 
         self._check_kernel_size_consistency(kernel_size)
 
@@ -155,7 +156,6 @@ class ConvLSTM(nn.Module):
         cur_layer_input = input_tensor
 
         for layer_idx in range(self.num_layers):
-
             h, c = hidden_state[layer_idx]
             output_inner = []
             for t in range(seq_len):
@@ -208,7 +208,7 @@ class ConvLSTM_Seg(nn.Module):
     def __init__(
         self, num_classes, input_size, input_dim, hidden_dim, kernel_size, pad_value=0
     ):
-        super(ConvLSTM_Seg, self).__init__()
+        super().__init__()
         self.convlstm_encoder = ConvLSTM(
             input_dim=input_dim,
             input_size=input_size,
@@ -240,7 +240,7 @@ class BConvLSTM_Seg(nn.Module):
     def __init__(
         self, num_classes, input_size, input_dim, hidden_dim, kernel_size, pad_value=0
     ):
-        super(BConvLSTM_Seg, self).__init__()
+        super().__init__()
         self.convlstm_forward = ConvLSTM(
             input_dim=input_dim,
             input_size=input_size,
@@ -288,7 +288,7 @@ class BConvLSTM_Seg(nn.Module):
 
 class BConvLSTM(nn.Module):
     def __init__(self, input_size, input_dim, hidden_dim, kernel_size):
-        super(BConvLSTM, self).__init__()
+        super().__init__()
         self.convlstm_forward = ConvLSTM(
             input_dim=input_dim,
             input_size=input_size,

@@ -40,12 +40,16 @@ class Rotate:
             for sample in range(img.shape[0]):
                 for channel in range(img.shape[1]):
                     rotated = np.rot90(img[sample, channel, ...].numpy(), self.k)
-                    img_rotated[sample, channel, ...] = torch.from_numpy(_fix_negative_strides(rotated))
+                    img_rotated[sample, channel, ...] = torch.from_numpy(
+                        _fix_negative_strides(rotated)
+                    )
 
         elif img.dim() == 3:
             for channel in range(img.shape[0]):
                 rotated = np.rot90(img[channel, ...].numpy(), self.k)
-                img_rotated[channel, ...] = torch.from_numpy(_fix_negative_strides(rotated))
+                img_rotated[channel, ...] = torch.from_numpy(
+                    _fix_negative_strides(rotated)
+                )
         else:
             rotated = np.rot90(img.numpy(), self.k)
             img_rotated = torch.from_numpy(_fix_negative_strides(rotated))
@@ -85,24 +89,29 @@ class RandomHorizontalFlip:
                 for channel in range(img.shape[1]):
                     if do_flip:
                         flipped = np.fliplr(img[sample, channel, ...].numpy())
-                        img_flipped[sample, channel, ...] = torch.from_numpy(_fix_negative_strides(flipped))
+                        img_flipped[sample, channel, ...] = torch.from_numpy(
+                            _fix_negative_strides(flipped)
+                        )
                     else:
-                        img_flipped[sample, channel, ...] = img[sample, channel, ...].clone()
+                        img_flipped[sample, channel, ...] = img[
+                            sample, channel, ...
+                        ].clone()
 
         elif img.dim() == 3:
             for channel in range(img.shape[0]):
                 if do_flip:
                     flipped = np.fliplr(img[channel, ...].numpy())
-                    img_flipped[channel, ...] = torch.from_numpy(_fix_negative_strides(flipped))
+                    img_flipped[channel, ...] = torch.from_numpy(
+                        _fix_negative_strides(flipped)
+                    )
                 else:
                     img_flipped[channel, ...] = img[channel, ...].clone()
 
+        elif do_flip:
+            flipped = np.fliplr(img.numpy())
+            img_flipped = torch.from_numpy(_fix_negative_strides(flipped))
         else:
-            if do_flip:
-                flipped = np.fliplr(img.numpy())
-                img_flipped = torch.from_numpy(_fix_negative_strides(flipped))
-            else:
-                img_flipped = img.clone()
+            img_flipped = img.clone()
 
         return img_flipped
 
@@ -139,23 +148,28 @@ class RandomVerticalFlip:
                 for channel in range(img.shape[1]):
                     if do_flip:
                         flipped = np.flipud(img[sample, channel, ...].numpy())
-                        img_flipped[sample, channel, ...] = torch.from_numpy(_fix_negative_strides(flipped))
+                        img_flipped[sample, channel, ...] = torch.from_numpy(
+                            _fix_negative_strides(flipped)
+                        )
                     else:
-                        img_flipped[sample, channel, ...] = img[sample, channel, ...].clone()
+                        img_flipped[sample, channel, ...] = img[
+                            sample, channel, ...
+                        ].clone()
 
         elif img.dim() == 3:
             for channel in range(img.shape[0]):
                 if do_flip:
                     flipped = np.flipud(img[channel, ...].numpy())
-                    img_flipped[channel, ...] = torch.from_numpy(_fix_negative_strides(flipped))
+                    img_flipped[channel, ...] = torch.from_numpy(
+                        _fix_negative_strides(flipped)
+                    )
                 else:
                     img_flipped[channel, ...] = img[channel, ...].clone()
 
+        elif do_flip:
+            flipped = np.flipud(img.numpy())
+            img_flipped = torch.from_numpy(_fix_negative_strides(flipped))
         else:
-            if do_flip:
-                flipped = np.flipud(img.numpy())
-                img_flipped = torch.from_numpy(_fix_negative_strides(flipped))
-            else:
-                img_flipped = img.clone()
+            img_flipped = img.clone()
 
         return img_flipped

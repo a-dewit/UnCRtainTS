@@ -2,9 +2,8 @@ import copy
 
 import numpy as np
 import torch
-import torch.nn as nn
-
 from src.backbones.positional_encoding import PositionalEncoder
+from torch import nn
 
 
 class LTAE2d(nn.Module):
@@ -19,7 +18,7 @@ class LTAE2d(nn.Module):
         T=1000,
         return_att=False,
         positional_encoding=True,
-        use_dropout=True
+        use_dropout=True,
     ):
         """
         Lightweight Temporal Attention Encoder (L-TAE) for image time series.
@@ -38,7 +37,7 @@ class LTAE2d(nn.Module):
             positional_encoding (bool): If False, no positional encoding is used (default True).
             use_dropout (bool): dropout on the attention masks.
         """
-        super(LTAE2d, self).__init__()
+        super().__init__()
         self.in_channels = in_channels
         self.mlp = copy.deepcopy(mlp)
         self.return_att = return_att
@@ -128,10 +127,8 @@ class LTAE2d(nn.Module):
         # after MLP, out is of shape [B*H*W x outputLayerOfMLP], e.g. [2048 x 128]
         out = self.out_norm(out) if self.out_norm is not None else out
         out = out.view(sz_b, h, w, -1).permute(0, 3, 1, 2)
-        
-        attn = attn.view(self.n_head, sz_b, h, w, seq_len).permute(
-            0, 1, 4, 2, 3
-        )
+
+        attn = attn.view(self.n_head, sz_b, h, w, seq_len).permute(0, 1, 4, 2, 3)
 
         # out  is of shape [B x outputLayerOfMLP x h x w], e.g. [2, 128, 32, 32]
         # attn is of shape [h x B x T x H x W], e.g. [16, 2, 4, 32, 32]
@@ -139,7 +136,6 @@ class LTAE2d(nn.Module):
             return out, attn
         else:
             return out
-
 
 
 class LTAE2dtiny(nn.Module):
@@ -167,7 +163,7 @@ class LTAE2dtiny(nn.Module):
             T (int): Period to use for the positional encoding.
             positional_encoding (bool): If False, no positional encoding is used (default True).
         """
-        super(LTAE2dtiny, self).__init__()
+        super().__init__()
         self.in_channels = in_channels
         self.n_head = n_head
 
@@ -192,7 +188,6 @@ class LTAE2dtiny(nn.Module):
             num_groups=n_head,
             num_channels=self.in_channels,
         )
-
 
     def forward(self, x, batch_positions=None, pad_mask=None):
         sz_b, seq_len, d, h, w = x.shape
@@ -220,7 +215,7 @@ class LTAE2dtiny(nn.Module):
                 .unsqueeze(-1)
                 .repeat((1, 1, 1, w))
             )  # BxTxHxW
-            bp  = bp.permute(0, 2, 3, 1).contiguous().view(sz_b * h * w, seq_len)
+            bp = bp.permute(0, 2, 3, 1).contiguous().view(sz_b * h * w, seq_len)
             out = out + self.positional_encoder(bp)
 
         # re-shaped attn to   [h x B*H*W x T], e.g. torch.Size([16, 2048, 4])
@@ -229,10 +224,7 @@ class LTAE2dtiny(nn.Module):
         #   in utae.py this is torch.Size([B, 128, 32, 32])
         attn = self.attention_heads(out, pad_mask=pad_mask)
 
-
-        attn = attn.view(self.n_head, sz_b, h, w, seq_len).permute(
-            0, 1, 4, 2, 3
-        )
+        attn = attn.view(self.n_head, sz_b, h, w, seq_len).permute(0, 1, 4, 2, 3)
 
         # out  is of shape [B x outputLayerOfMLP x h x w], e.g. [2, 128, 32, 32]
         # attn is of shape [h x B x T x H x W], e.g. [16, 2, 4, 32, 32]
@@ -250,7 +242,7 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         self.n_head = n_head
         self.d_k = d_k
-        self.d_in = d_in # e.g. self.d_model in LTAE2d
+        self.d_in = d_in  # e.g. self.d_model in LTAE2d
 
         # define H x k queries, they are input-independent in LTAE
         self.Q = nn.Parameter(torch.zeros((n_head, d_k))).requires_grad_(True)
@@ -259,16 +251,20 @@ class MultiHeadAttention(nn.Module):
         self.fc1_k = nn.Linear(d_in, n_head * d_k)
         nn.init.normal_(self.fc1_k.weight, mean=0, std=np.sqrt(2.0 / (d_k)))
 
-        attn_dropout=0.1 if use_dropout else 0.0
-        self.attention = ScaledDotProductAttention(temperature=np.power(d_k, 0.5), attn_dropout=attn_dropout)
+        attn_dropout = 0.1 if use_dropout else 0.0
+        self.attention = ScaledDotProductAttention(
+            temperature=np.power(d_k, 0.5), attn_dropout=attn_dropout
+        )
 
     def forward(self, v, pad_mask=None, return_comp=False):
         d_k, d_in, n_head = self.d_k, self.d_in, self.n_head
         # values v are of shapes [B*H*W, T, self.d_in=self.d_model], e.g. [2*32*32=2048 x 4 x 256] (see: sz_b * h * w, seq_len, d)
-        # where self.d_in=self.d_model is the output dimension of the FC-projected features  
+        # where self.d_in=self.d_model is the output dimension of the FC-projected features
         sz_b, seq_len, _ = v.size()
 
-        q = torch.stack([self.Q for _ in range(sz_b)], dim=1).view(-1, d_k)  # (n*b) x d_k
+        q = torch.stack([self.Q for _ in range(sz_b)], dim=1).view(
+            -1, d_k
+        )  # (n*b) x d_k
 
         k = self.fc1_k(v).view(sz_b, seq_len, n_head, d_k)
         k = k.permute(2, 0, 1, 3).contiguous().view(-1, seq_len, d_k)  # (n*b) x lk x dk
@@ -281,7 +277,9 @@ class MultiHeadAttention(nn.Module):
         # attn   is of shape [B*H*W*h, 1, T], e.g. [2*32*32*16=32768 x 1 x 4], e.g. Size([32768, 1, 4])
         # v      is of shape [B*H*W*h, T, self.d_in/h], e.g. [2*32*32*16=32768 x 4 x 256/16=16], e.g. Size([32768, 4, 16])
         # output is of shape [B*H*W*h, 1, h], e.g. [2*32*32*16=32768 x 1 x 16], e.g. Size([32768, 1, 16])
-        v = torch.stack(v.split(v.shape[-1] // n_head, dim=-1)).view(n_head * sz_b, seq_len, -1)
+        v = torch.stack(v.split(v.shape[-1] // n_head, dim=-1)).view(
+            n_head * sz_b, seq_len, -1
+        )
         if return_comp:
             output, attn, comp = self.attention(
                 q, k, v, pad_mask=pad_mask, return_comp=return_comp
@@ -316,9 +314,9 @@ class MultiHeadAttentionSmall(nn.Module):
 
     def __init__(self, n_head, d_k, d_in):
         super().__init__()
-        self.n_head = n_head    # e.g. 16
-        self.d_k    = d_k       # e.g. 4, number of keys per head
-        self.d_in   = d_in      # e.g. 256, self.d_model in LTAE2d
+        self.n_head = n_head  # e.g. 16
+        self.d_k = d_k  # e.g. 4, number of keys per head
+        self.d_in = d_in  # e.g. 256, self.d_model in LTAE2d
 
         # define H x k queries, they are input-independent in LTAE
         self.Q = nn.Parameter(torch.zeros((n_head, d_k))).requires_grad_(True)
@@ -335,16 +333,18 @@ class MultiHeadAttentionSmall(nn.Module):
         """
 
         nn.init.normal_(self.fc1_k.weight, mean=0, std=np.sqrt(2.0 / (d_k)))
-        #nn.init.normal_(self.fc2_k.weight, mean=0, std=np.sqrt(2.0 / (d_k)))
+        # nn.init.normal_(self.fc2_k.weight, mean=0, std=np.sqrt(2.0 / (d_k)))
         self.attention = ScaledDotProductAttentionSmall(temperature=np.power(d_k, 0.5))
 
     def forward(self, v, pad_mask=None, return_comp=False, weight_v=False):
         d_k, d_in, n_head = self.d_k, self.d_in, self.n_head
         # values v are of shapes [B*H*W, T, self.d_in=self.d_model], e.g. [2*32*32=2048 x 4 x 256] (see: sz_b * h * w, seq_len, d)
-        # where self.d_in=self.d_model is the output dimension of the FC-projected features  
+        # where self.d_in=self.d_model is the output dimension of the FC-projected features
         sz_b, seq_len, _ = v.size()
 
-        q = torch.stack([self.Q for _ in range(sz_b)], dim=1).view(-1, d_k)  # (n*b) x d_k
+        q = torch.stack([self.Q for _ in range(sz_b)], dim=1).view(
+            -1, d_k
+        )  # (n*b) x d_k
 
         k = self.fc1_k(v).view(sz_b, seq_len, n_head, d_k)
         k = k.permute(2, 0, 1, 3).contiguous().view(-1, seq_len, d_k)  # (n*b) x lk x dk
@@ -357,13 +357,26 @@ class MultiHeadAttentionSmall(nn.Module):
         # attn   is of shape [B*H*W*h, 1, T], e.g. [2*32*32*16=32768 x 1 x 4], e.g. Size([32768, 1, 4])
         # v      is of shape [B*H*W*h, T, self.d_in/h], e.g. [2*32*32*16=32768 x 4 x 256/16=16], e.g. Size([32768, 4, 16])
         # output is of shape [B*H*W*h, 1, h], e.g. [2*32*32*16=32768 x 1 x 16], e.g. Size([32768, 1, 16])
-        v = torch.stack(v.split(v.shape[-1] // n_head, dim=-1)).view(n_head * sz_b, seq_len, -1)
+        v = torch.stack(v.split(v.shape[-1] // n_head, dim=-1)).view(
+            n_head * sz_b, seq_len, -1
+        )
         if weight_v:
-            output, attn = self.attention(q, k, v, pad_mask=pad_mask, return_comp=return_comp, weight_v=weight_v)
+            output, attn = self.attention(
+                q, k, v, pad_mask=pad_mask, return_comp=return_comp, weight_v=weight_v
+            )
             if return_comp:
-                output, attn, comp = self.attention(q, k, v, pad_mask=pad_mask, return_comp=return_comp, weight_v=weight_v)
+                output, attn, comp = self.attention(
+                    q,
+                    k,
+                    v,
+                    pad_mask=pad_mask,
+                    return_comp=return_comp,
+                    weight_v=weight_v,
+                )
         else:
-            attn = self.attention(q, k, v, pad_mask=pad_mask, return_comp=return_comp, weight_v=weight_v)
+            attn = self.attention(
+                q, k, v, pad_mask=pad_mask, return_comp=return_comp, weight_v=weight_v
+            )
 
         attn = attn.view(n_head, sz_b, 1, seq_len)
         attn = attn.squeeze(dim=2)
@@ -415,6 +428,7 @@ class ScaledDotProductAttention(nn.Module):
         else:
             return output, attn
 
+
 # no longer using dropout (before upsampling)
 # but optionally doing attn*v weighting
 class ScaledDotProductAttentionSmall(nn.Module):
@@ -425,7 +439,7 @@ class ScaledDotProductAttentionSmall(nn.Module):
     def __init__(self, temperature):
         super().__init__()
         self.temperature = temperature
-        #self.dropout = nn.Dropout(attn_dropout) # moved dropout after bilinear interpolation
+        # self.dropout = nn.Dropout(attn_dropout) # moved dropout after bilinear interpolation
         self.softmax = nn.Softmax(dim=2)
 
     def forward(self, q, k, v, pad_mask=None, return_comp=False, weight_v=False):
@@ -439,7 +453,7 @@ class ScaledDotProductAttentionSmall(nn.Module):
         # v      is of shape [B*H*W*h, T, self.d_in/h], e.g. [2*32*32*16=32768 x 4 x 256/16=16]
         # output is of shape [B*H*W*h, 1, h], e.g. [2*32*32*16=32768 x 1 x 16], e.g. Size([32768, 1, 16])
         attn = self.softmax(attn)
-        
+
         """
         # no longer using dropout on attention matrices before the upsampling
         # this is now done after bilinear interpolation only

@@ -1,10 +1,11 @@
-import re
 import collections.abc
+import re
 
 import torch
 from torch.nn import functional as F
 
 np_str_obj_array_pattern = re.compile(r"[SaUO]")
+
 
 # map arg string of written list to list
 def str2list(config, list_args):
@@ -14,7 +15,6 @@ def str2list(config, list_args):
             v = v.replace("]", "")
             config.__setattr__(k, list(map(int, v.split(","))))
     return config
-
 
 
 def pad_tensor(x, l, pad_value=0):
@@ -43,15 +43,14 @@ def pad_collate(batch, pad_value=0):
             storage = elem.storage()._new_shared(numel)
             out = elem.new(storage)
         return torch.stack(batch, 0, out=out)
-    elif (
-        elem_type.__module__ == "numpy"
-        and elem_type.__name__ != "str_"
-        and elem_type.__name__ != "string_"
-    ):
-        if elem_type.__name__ == "ndarray" or elem_type.__name__ == "memmap":
+    elif elem_type.__module__ == "numpy" and elem_type.__name__ not in {
+        "str_",
+        "string_",
+    }:
+        if elem_type.__name__ in {"ndarray", "memmap"}:
             # array of string classes and object
             if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
-                raise TypeError("Format not managed : {}".format(elem.dtype))
+                raise TypeError(f"Format not managed : {elem.dtype}")
 
             return pad_collate([torch.as_tensor(b) for b in batch])
         elif elem.shape == ():  # scalars
@@ -69,7 +68,7 @@ def pad_collate(batch, pad_value=0):
         transposed = zip(*batch)
         return [pad_collate(samples) for samples in transposed]
 
-    raise TypeError("Format not managed : {}".format(elem_type))
+    raise TypeError(f"Format not managed : {elem_type}")
 
 
 def get_ntrainparams(model):

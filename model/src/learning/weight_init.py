@@ -1,15 +1,16 @@
-import torch.nn as nn
-import torch.nn.init as init
+from torch import nn
+from torch.nn import init
+
 
 def weight_init(m, spread=1.0):
-    '''
+    """
     Initializes a model's parameters.
     Credits to: https://gist.github.com/jeasinema
 
     Usage:
         model = Model()
         model.apply(weight_init)
-    '''
+    """
     if isinstance(m, nn.Conv1d):
         init.normal_(m.weight.data, mean=0, std=spread)
         if m.bias is not None:

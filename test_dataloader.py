@@ -1,9 +1,8 @@
 from pathlib import Path
+
 from dataloader_CIRCA.datasets import CircaPatchDataSet
 
-
 if __name__ == "__main__":
-
     store_dai = Path("/home/dl/speillet/Partage/store-dai/")
     path_dataset_CIRCA = store_dai / "projets/pac/3str/EXP_2"
     data_optique = path_dataset_CIRCA / "Data_Raster" / "optique_dataset"

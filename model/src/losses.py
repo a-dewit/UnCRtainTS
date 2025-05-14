@@ -1,44 +1,60 @@
 import math
-import torch
-Tensor = torch.Tensor
-import torch.nn as nn
-import torch.nn.modules.loss
-from torch.nn.modules.loss import _Loss
-from torch.overrides import has_torch_function_variadic, handle_torch_function
 
-from torch import vmap
+import torch
+
+Tensor = torch.Tensor
+import torch.nn.modules.loss
+from torch import nn, vmap
+from torch.nn.modules.loss import _Loss
+from torch.overrides import handle_torch_function, has_torch_function_variadic
 
 S2_BANDS = 13
 
 
 def get_loss(config):
     if config.loss == "GNLL":
-        criterion1 = GaussianNLLLoss(reduction='mean', eps=1e-8, full=True)
-        criterion = lambda pred, targ, var: criterion1(pred, targ, var)
+        criterion1 = GaussianNLLLoss(reduction="mean", eps=1e-8, full=True)
+
+        def criterion(pred, targ, var):
+            return criterion1(pred, targ, var)
     elif config.loss == "MGNLL":
-        criterion1 = MultiGaussianNLLLoss(reduction='mean', eps=1e-8, full=True, mode=config.covmode, chunk=config.chunk_size)
-        criterion = lambda pred, targ, var: criterion1(pred, targ, var)
-    elif config.loss=="l1":
+        criterion1 = MultiGaussianNLLLoss(
+            reduction="mean",
+            eps=1e-8,
+            full=True,
+            mode=config.covmode,
+            chunk=config.chunk_size,
+        )
+
+        def criterion(pred, targ, var):
+            return criterion1(pred, targ, var)
+    elif config.loss == "l1":
         criterion1 = nn.L1Loss()
-        criterion = lambda pred, targ: criterion1(pred, targ)
-    elif config.loss=="l2":
+
+        def criterion(pred, targ):
+            return criterion1(pred, targ)
+    elif config.loss == "l2":
         criterion1 = nn.MSELoss()
-        criterion = lambda pred, targ: criterion1(pred, targ)
-    else: raise NotImplementedError
+
+        def criterion(pred, targ):
+            return criterion1(pred, targ)
+    else:
+        raise NotImplementedError
 
     # wrap losses
-    loss_wrap = lambda *args: args
-    loss = loss_wrap(criterion) 
+    def loss_wrap(*args):
+        return args
+
+    loss = loss_wrap(criterion)
     return loss if not isinstance(loss, tuple) else loss[0]
 
 
 def calc_loss(criterion, config, out, y, var=None):
-    
-    if config.loss in ['GNLL']:
+    if config.loss in ["GNLL"]:
         loss, variance = criterion(out, y, var)
-    elif config.loss in ['MGNLL']:
+    elif config.loss in ["MGNLL"]:
         loss, variance = criterion(out, y, var)
-    else: 
+    else:
         loss, variance = criterion(out, y), None
     return loss, variance
 
@@ -84,7 +100,6 @@ def gaussian_nll_loss(
     # If var.size == input.size, the case is heteroscedastic and no further checks are needed.
     # Otherwise:
     if var.size() != input.size():
-
         # If var is one dimension short of input, but the sizes match otherwise, then this is a homoscedastic case.
         # e.g. input.size = (10, 2, 3), var.size = (10, 2)
         # -> unsqueeze var so that var.shape = (10, 2, 1)
@@ -95,7 +110,9 @@ def gaussian_nll_loss(
         # This checks if the sizes match up to the final dimension, and the final dimension of var is of size 1.
         # This is also a homoscedastic case.
         # e.g. input.size = (10, 2, 3), var.size = (10, 2, 1)
-        elif input.size()[:-1] == var.size()[:-1] and var.size(-1) == 1:  # Heteroscedastic case
+        elif (
+            input.size()[:-1] == var.size()[:-1] and var.size(-1) == 1
+        ):  # Heteroscedastic case
             pass
 
         # If none of the above pass, then the size of var is incorrect.
@@ -103,7 +120,7 @@ def gaussian_nll_loss(
             raise ValueError("var is of incorrect size")
 
     # Check validity of reduction mode
-    if reduction != 'none' and reduction != 'mean' and reduction != 'sum':
+    if reduction not in {"none", "mean", "sum"}:
         raise ValueError(reduction + " is not valid")
 
     # Entries of var must be non-negative
@@ -116,13 +133,13 @@ def gaussian_nll_loss(
         var.clamp_(min=eps)
 
     # Calculate the loss
-    loss = 0.5 * (torch.log(var) + (input - target)**2 / var)
+    loss = 0.5 * (torch.log(var) + (input - target) ** 2 / var)
     if full:
         loss += 0.5 * math.log(2 * math.pi)
 
-    if reduction == 'mean':
+    if reduction == "mean":
         return loss.mean(), var
-    elif reduction == 'sum':
+    elif reduction == "sum":
         return loss.sum(), var
     else:
         return loss, var
@@ -132,18 +149,26 @@ def multi_diag_gaussian_nll(pred, target, var):
     # maps var from [B x 1 x C] to [B x 1 x C x C]
     pred, target, var = pred.squeeze(dim=1), target.squeeze(dim=1), var.squeeze(dim=1)
 
-    k  = pred.shape[-1]
-    prec = torch.diag_embed(1/var, offset=0, dim1=-2, dim2=-1)  
+    k = pred.shape[-1]
+    prec = torch.diag_embed(1 / var, offset=0, dim1=-2, dim2=-1)
     # the log-determinant of a diagonal matrix is simply the trace of the log of the diagonal matrix
-    logdetv = var.log().sum() # this may be more numerically stable a general calculation
-    err  = (pred - target).unsqueeze(dim=1)
+    logdetv = (
+        var.log().sum()
+    )  # this may be more numerically stable a general calculation
+    err = (pred - target).unsqueeze(dim=1)
     # for the Mahalanobis distance xTCx to be defined and >= 0, the precision matrix must be positive definite
-    xTCx = torch.bmm(torch.bmm(err, prec), err.permute(0, 2, 1)).squeeze().nan_to_num().clamp(min=1e-9) # note: equals torch.bmm(torch.bmm(-err, prec), -err)
+    xTCx = (
+        torch.bmm(torch.bmm(err, prec), err.permute(0, 2, 1))
+        .squeeze()
+        .nan_to_num()
+        .clamp(min=1e-9)
+    )  # note: equals torch.bmm(torch.bmm(-err, prec), -err)
     # define the NLL loss
-    loss = -(-k/2 * torch.log(2*torch.tensor(torch.pi)) - 1/2 * logdetv - 1/2 * xTCx)
+    loss = -(
+        -k / 2 * torch.log(2 * torch.tensor(torch.pi)) - 1 / 2 * logdetv - 1 / 2 * xTCx
+    )
 
     return loss, torch.diag_embed(var, offset=0, dim1=-2, dim2=-1).cpu()
-
 
 
 def multi_gaussian_nll_loss(
@@ -154,7 +179,7 @@ def multi_gaussian_nll_loss(
     eps: float = 1e-8,
     reduction: str = "mean",
     mode: str = "diag",
-    chunk = None
+    chunk=None,
 ) -> Tensor:
     r"""Multivariate Gaussian negative log likelihood loss.
 
@@ -184,15 +209,15 @@ def multi_gaussian_nll_loss(
             eps=eps,
             reduction=reduction,
             mode=mode,
-            chunk=None
+            chunk=None,
         )
 
-    if mode=='iso':
+    if mode == "iso":
         # duplicate the scalar variance across all spectral dimensions
-        var = var.expand(-1,-1,S2_BANDS,-1,-1)
+        var = var.expand(-1, -1, S2_BANDS, -1, -1)
 
     # Check validity of reduction mode
-    if reduction != 'none' and reduction != 'mean' and reduction != 'sum':
+    if reduction not in {"none", "mean", "sum"}:
         raise ValueError(reduction + " is not valid")
 
     # Entries of var must be non-negative
@@ -202,21 +227,24 @@ def multi_gaussian_nll_loss(
     # Clamp for stability
     var = var.clone()
     with torch.no_grad():
-        var[:,:,:S2_BANDS].clamp_(min=eps)
+        var[:, :, :S2_BANDS].clamp_(min=eps)
 
-    if mode in ['iso', 'diag']:
-        mapdims = (-1,-1,-1)
-        loss, variance = vmap(vmap(multi_diag_gaussian_nll, in_dims=mapdims, chunk_size=chunk), in_dims=mapdims, chunk_size=chunk)(input, target, var)
-    
-    variance = variance.moveaxis(1,-1).moveaxis(0,-1).unsqueeze(1)
+    if mode in ["iso", "diag"]:
+        mapdims = (-1, -1, -1)
+        loss, variance = vmap(
+            vmap(multi_diag_gaussian_nll, in_dims=mapdims, chunk_size=chunk),
+            in_dims=mapdims,
+            chunk_size=chunk,
+        )(input, target, var)
 
-    if reduction == 'mean':
+    variance = variance.moveaxis(1, -1).moveaxis(0, -1).unsqueeze(1)
+
+    if reduction == "mean":
         return loss.mean(), variance
-    elif reduction == 'sum':
+    elif reduction == "sum":
         return loss.sum(), variance
     else:
         return loss, variance
-
 
 
 class GaussianNLLLoss(_Loss):
@@ -270,19 +298,22 @@ class GaussianNLLLoss(_Loss):
         Conference on Neural Networks (ICNN'94), Orlando, FL, USA, 1994, pp. 55-60
         vol.1, doi: 10.1109/ICNN.1994.374138.
     """
-    __constants__ = ['full', 'eps', 'reduction']
+
+    __constants__ = ["full", "eps", "reduction"]
     full: bool
     eps: float
 
-    def __init__(self, *, full: bool = False, eps: float = 1e-8, reduction: str = 'mean') -> None:
-        super(GaussianNLLLoss, self).__init__(None, None, reduction)
+    def __init__(
+        self, *, full: bool = False, eps: float = 1e-8, reduction: str = "mean"
+    ) -> None:
+        super().__init__(None, None, reduction)
         self.full = full
-        self.eps  = eps
+        self.eps = eps
 
     def forward(self, input: Tensor, target: Tensor, var: Tensor) -> Tensor:
-        return gaussian_nll_loss(input, target, var, full=self.full, eps=self.eps, reduction=self.reduction)
-
-
+        return gaussian_nll_loss(
+            input, target, var, full=self.full, eps=self.eps, reduction=self.reduction
+        )
 
 
 class MultiGaussianNLLLoss(_Loss):
@@ -339,16 +370,34 @@ class MultiGaussianNLLLoss(_Loss):
         Conference on Neural Networks (ICNN'94), Orlando, FL, USA, 1994, pp. 55-60
         vol.1, doi: 10.1109/ICNN.1994.374138.
     """
-    __constants__ = ['full', 'eps', 'reduction']
+
+    __constants__ = ["full", "eps", "reduction"]
     full: bool
     eps: float
 
-    def __init__(self, *, full: bool = False, eps: float = 1e-8, reduction: str = 'mean', mode: str = 'diag', chunk: None) -> None:
-        super(MultiGaussianNLLLoss, self).__init__(None, None, reduction)
+    def __init__(
+        self,
+        *,
+        full: bool = False,
+        eps: float = 1e-8,
+        reduction: str = "mean",
+        mode: str = "diag",
+        chunk: None,
+    ) -> None:
+        super().__init__(None, None, reduction)
         self.full = full
-        self.eps  = eps
+        self.eps = eps
         self.mode = mode
         self.chunk = chunk
-    
+
     def forward(self, input: Tensor, target: Tensor, var: Tensor) -> Tensor:
-        return multi_gaussian_nll_loss(input, target, var, full=self.full, eps=self.eps, reduction=self.reduction, mode=self.mode, chunk=self.chunk)
+        return multi_gaussian_nll_loss(
+            input,
+            target,
+            var,
+            full=self.full,
+            eps=self.eps,
+            reduction=self.reduction,
+            mode=self.mode,
+            chunk=self.chunk,
+        )

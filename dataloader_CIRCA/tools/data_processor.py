@@ -1,7 +1,7 @@
 import datetime
 import itertools
 from pathlib import Path
-from typing import List, Literal, Tuple, Union
+from typing import Literal, Union
 
 import numpy as np
 import rasterio
@@ -84,8 +84,8 @@ class SentinelDataProcessor:
 
     @staticmethod
     def get_img_windows_list(
-        img_shape: Tuple[int, int], tile_size: int, overlap: int = 0
-    ) -> List[Tuple[int, int, int, int]]:
+        img_shape: tuple[int, int], tile_size: int, overlap: int = 0
+    ) -> list[tuple[int, int, int, int]]:
         """
         Compute patches windows from an image with overlap on all sides.
         Return a list of coordinates for each window. All patches are entirely within the image.
@@ -124,7 +124,7 @@ class SentinelDataProcessor:
         path_raster: Union[str, Path],
         patch_size: int,
         overlap: int = 0,
-    ) -> List[Tuple[int, int, int, int]]:
+    ) -> list[tuple[int, int, int, int]]:
         """
         Splits a raster into windows of a specified patch size.
 
@@ -230,8 +230,10 @@ class SentinelDataProcessor:
 
     @staticmethod
     def extract_and_transform_S2(
-        S2_array: np.ndarray, dates: List[str], S2_channels_selected: List[int] = None,
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        S2_array: np.ndarray,
+        dates: list[str],
+        S2_channels_selected: list[int] = None,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Extracts and transforms Sentinel-2 data by filtering cloudy dates and correcting cloud masks.
 
@@ -270,10 +272,10 @@ class SentinelDataProcessor:
 
     @staticmethod
     def get_pairedS1(
-        dates_S2: List[str],
-        dates_S1_asc: List[str],
-        dates_S1_desc: List[str],
-    ) -> Tuple[List[str], List[int], str]:
+        dates_S2: list[str],
+        dates_S1_asc: list[str],
+        dates_S1_desc: list[str],
+    ) -> tuple[list[str], list[int], str]:
         """
         Pairs Sentinel-1 data with Sentinel-2 data based on the closest dates.
 
@@ -394,16 +396,12 @@ class SentinelDataProcessor:
                         2
                         * (np.clip(img[0], dB_min[0], dB_max[0]) - dB_min[0])
                         / (dB_max[0] - dB_min[0])
-                    )[
-                        None, ...
-                    ],  # Channel 1
+                    )[None, ...],  # Channel 1
                     (
                         2
                         * (np.clip(img[1], dB_min[1], dB_max[1]) - dB_min[1])
                         / (dB_max[1] - dB_min[1])
-                    )[
-                        None, ...
-                    ],  # Channel 2
+                    )[None, ...],  # Channel 2
                 ],
                 axis=0,
             )  # Clip and rescale each channel independently

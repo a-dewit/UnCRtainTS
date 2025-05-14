@@ -1,12 +1,11 @@
-import pandas as pd
+from typing import Optional, Union
+
+import ipywidgets as widgets
+import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib.pyplot as plt
-import ipywidgets as widgets
-import matplotlib.pyplot as plt
-from mpl_interactions import ipyplot as iplt
+import pandas as pd
 from mpl_interactions import hyperslicer
-import ipywidgets as widgets
-from typing import List, Dict, Optional, Union
+from mpl_interactions import ipyplot as iplt
 
 
 class TimeSerieVisualizer:
@@ -18,8 +17,8 @@ class TimeSerieVisualizer:
     def __init__(
         self,
         data: np.ndarray,
-        dates: List[str],
-        sat_types: Union[List[str], str],
+        dates: list[str],
+        sat_types: Union[list[str], str],
         out_export_csv: str = "./selected_dates.csv",
         out_export_gif: str = "./sen-ts-plot.gif",
         fps: int = 2,
@@ -152,7 +151,7 @@ class TimeSerieVisualizer:
         self.ax.get_xaxis().set_visible(False)  # Hide x-axis
         self.ax.get_yaxis().set_visible(False)  # Hide y-axis
 
-    def setup_controls(self, bands: List[int] = [2, 1, 0]):
+    def setup_controls(self, bands: list[int] = [2, 1, 0]):
         """
         Sets up the controls for visualizing the data.
 
@@ -219,7 +218,7 @@ class TimeSerieVisualizer:
         self.accordion.set_title(0, "Bands")
 
     def prepare_img_to_RGB(
-        self, data: np.ndarray, bands: List[int] = [2, 1, 0]
+        self, data: np.ndarray, bands: list[int] = [2, 1, 0]
     ) -> np.ndarray:
         """
         Prepares the image data for RGB visualization by selecting and normalizing the specified bands.
@@ -265,8 +264,8 @@ class TimeSerieVisualizer:
 
     def transform_data(
         self,
-        data: Union[np.ndarray, Dict[str, np.ndarray]],
-        bands: List[int] = [2, 1, 0],
+        data: Union[np.ndarray, dict[str, np.ndarray]],
+        bands: list[int] = [2, 1, 0],
     ) -> np.ndarray:
         """
         Transforms the input data into RGB format for visualization.
@@ -281,7 +280,7 @@ class TimeSerieVisualizer:
         if isinstance(data, dict):
             blocks = []
             for k, v in data.items():
-                if k == "img" or k == "pred":
+                if k in {"img", "pred"}:
                     blocks.append(self.prepare_img_to_RGB(v, bands=bands))
                 elif k == "msk":
                     blocks.append(self.prepare_msk_to_RGB(v))
@@ -339,7 +338,7 @@ class TimeSerieVisualizer:
         """
         self.sen_ctrls.controls["timeframes"].children[0].value -= 1
 
-    def set_controls(self, bands_selected: List[int]):
+    def set_controls(self, bands_selected: list[int]):
         """
         Sets up the controls for visualizing the data with the selected bands.
 

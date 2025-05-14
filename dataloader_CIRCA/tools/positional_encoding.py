@@ -1,18 +1,19 @@
 import datetime as dt
-from itertools import compress
-from typing import Dict, List, Optional, Tuple
+
 import torch
 from torch import Tensor
 
 # Launch date of Sentinel-2A
-REFERENCE_DATE: dt.date = dt.datetime(*map(int, '2015-06-23'.split("-")), tzinfo=None).date()
+REFERENCE_DATE: dt.date = dt.datetime(
+    *map(int, "2015-06-23".split("-")), tzinfo=None
+).date()
 # Strategies for positional encoding
-PE_STRATEGIES = ['day-of-year', 'day-within-sequence', 'absolute', 'enumeration']
+PE_STRATEGIES = ["day-of-year", "day-within-sequence", "absolute", "enumeration"]
 
 
-def get_position_for_positional_encoding(dates: List[dt.date], strategy: str) -> Tensor:
+def get_position_for_positional_encoding(dates: list[dt.date], strategy: str) -> Tensor:
     """
-    Function taken from https://github.com/prs-eth/U-TILISE/blob/main/lib/datasets/dataset_tools.py 
+    Function taken from https://github.com/prs-eth/U-TILISE/blob/main/lib/datasets/dataset_tools.py
 
     Extracts the position index for every observation in an image time series, expressed as the number of days since
     a given reference date. The position indices will be used for sinusoidal positional encoding in the temporal encoder
@@ -37,15 +38,15 @@ def get_position_for_positional_encoding(dates: List[dt.date], strategy: str) ->
         position:  torch.Tensor, number of days since a given reference date for every observation in the sequence.
     """
 
-    if strategy == 'enumeration':
+    if strategy == "enumeration":
         position = torch.arange(0, len(dates))
-    elif strategy == 'day-of-year':
+    elif strategy == "day-of-year":
         position = Tensor([(date - dt.date(date.year, 1, 1)).days for date in dates])
-    elif strategy == 'day-within-sequence':
+    elif strategy == "day-within-sequence":
         position = Tensor([(date - dates[0]).days for date in dates])
-    elif strategy == 'absolute':
+    elif strategy == "absolute":
         position = Tensor([(date - REFERENCE_DATE).days for date in dates])
     else:
-        raise NotImplementedError(f'Unknown positional encoding strategy {strategy}.\n')
+        raise NotImplementedError(f"Unknown positional encoding strategy {strategy}.\n")
 
     return position

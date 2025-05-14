@@ -2,9 +2,10 @@
 Modified from https://github.com/TUM-LMF/MTLCC-pytorch/blob/master/src/models/convlstm/convlstm.py
 authors: TUM-LMF
 """
-import torch.nn as nn
-from torch.autograd import Variable
+
 import torch
+from torch import nn
+from torch.autograd import Variable
 
 
 class ConvGRUCell(nn.Module):
@@ -26,7 +27,7 @@ class ConvGRUCell(nn.Module):
             Whether or not to add the bias.
         """
 
-        super(ConvGRUCell, self).__init__()
+        super().__init__()
 
         self.height, self.width = input_size
         self.input_dim = input_dim
@@ -76,7 +77,7 @@ class ConvGRU(nn.Module):
         bias=True,
         return_all_layers=False,
     ):
-        super(ConvGRU, self).__init__()
+        super().__init__()
 
         self._check_kernel_size_consistency(kernel_size)
 
@@ -147,7 +148,6 @@ class ConvGRU(nn.Module):
         cur_layer_input = input_tensor
 
         for layer_idx in range(self.num_layers):
-
             h = hidden_state[layer_idx]
             output_inner = []
             for t in range(seq_len):
@@ -200,7 +200,7 @@ class ConvGRU_Seg(nn.Module):
     def __init__(
         self, num_classes, input_size, input_dim, hidden_dim, kernel_size, pad_value=0
     ):
-        super(ConvGRU_Seg, self).__init__()
+        super().__init__()
         self.convgru_encoder = ConvGRU(
             input_dim=input_dim,
             input_size=input_size,

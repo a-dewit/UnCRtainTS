@@ -1,11 +1,14 @@
+from pathlib import Path
+import sys
+sys.path.append(str(Path(__file__).parents[2]))
+
 import ast
 import json
-from pathlib import Path
+
 from typing import Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
-
 
 from rasterio.windows import Window
 from torch.utils.data import Dataset
@@ -99,9 +102,9 @@ class CircaPatchDataSet(Dataset):
         ]
         self.patches_dataset[cols_to_convert] = self.patches_dataset[
             cols_to_convert
-        ].applymap(ast.literal_eval)
+        ].map(ast.literal_eval)
 
-        if ds.patches_dataset.loc[0, "window"][2] != self.patch_size:
+        if self.patches_dataset.loc[0, "window"][2] != self.patch_size:
             print(
                 """
                 WARNING : Patch size load in the .csv file is not corresponding to the patch size requested 
@@ -352,3 +355,25 @@ class CircaPatchDataSet(Dataset):
                 }
             )
         return sample
+
+
+if __name__ == "__main__":
+    store_dai = Path("/home/SPeillet/Partage/store-dai")
+    path_dataset_circa = store_dai / "projets/pac/3str/EXP_2"
+    data_optique = path_dataset_circa / "Data_Raster" / "optique_dataset"
+    data_radar = path_dataset_circa / "Data_Raster" / "radar_dataset_v4"
+    PATCH_SIZE = 256
+    OVERLAP = 0
+
+    ds = CircaPatchDataSet(
+        data_optique=data_optique,
+        data_radar=data_radar,
+        patch_size=PATCH_SIZE,
+        overlap=OVERLAP,
+        load_dataset="datasetCIRCAUnCRtainTS.csv"
+    )
+
+    # ds.setup()
+    # ds.export_dataset()
+    sample = next(iter(ds))
+    print(sample.keys())

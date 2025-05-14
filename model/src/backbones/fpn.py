@@ -1,7 +1,6 @@
-import torch.nn as nn
 import torch
-
 from src.backbones.convlstm import ConvLSTM
+from torch import nn
 
 
 class FPNConvLSTM(nn.Module):
@@ -31,7 +30,7 @@ class FPNConvLSTM(nn.Module):
             to reduce dimensionality before being given to the ConvLSTM.
             pad_value (float): Padding value (temporal) used by the dataloader.
         """
-        super(FPNConvLSTM, self).__init__()
+        super().__init__()
         self.pad_value = pad_value
         self.inconv = ConvBlock(
             nkernels=[input_dim] + inconv, norm="group", pad_value=pad_value
@@ -85,7 +84,7 @@ class FPNConvLSTM(nn.Module):
 
 class TemporallySharedBlock(nn.Module):
     def __init__(self, pad_value=None):
-        super(TemporallySharedBlock, self).__init__()
+        super().__init__()
         self.out_shape = None
         self.pad_value = pad_value
 
@@ -131,9 +130,9 @@ class PyramidBlock(TemporallySharedBlock):
             n_channels (int): Number of channels per level.
             pad_value (float): Padding value (temporal) used by the dataloader.
         """
-        super(PyramidBlock, self).__init__(pad_value=pad_value)
+        super().__init__(pad_value=pad_value)
 
-        dilations = [2 ** i for i in range(n_levels - 1)]
+        dilations = [2**i for i in range(n_levels - 1)]
         self.inconv = nn.Conv2d(input_dim, n_channels, kernel_size=3, padding=1)
         self.convs = nn.ModuleList(
             [
@@ -175,16 +174,16 @@ class PyramidBlock(TemporallySharedBlock):
 
 class ConvLayer(nn.Module):
     def __init__(self, nkernels, norm="batch", k=3, s=1, p=1, n_groups=4):
-        super(ConvLayer, self).__init__()
+        super().__init__()
         layers = []
         if norm == "batch":
             nl = nn.BatchNorm2d
         elif norm == "instance":
             nl = nn.InstanceNorm2d
         elif norm == "group":
-            nl = lambda num_feats: nn.GroupNorm(
-                num_channels=num_feats, num_groups=n_groups
-            )
+
+            def nl(num_feats):
+                return nn.GroupNorm(num_channels=num_feats, num_groups=n_groups)
         else:
             nl = None
         for i in range(len(nkernels) - 1):
@@ -209,7 +208,7 @@ class ConvLayer(nn.Module):
 
 class ConvBlock(TemporallySharedBlock):
     def __init__(self, nkernels, pad_value=None, norm="batch"):
-        super(ConvBlock, self).__init__(pad_value=pad_value)
+        super().__init__(pad_value=pad_value)
         self.conv = ConvLayer(nkernels=nkernels, norm=norm)
 
     def forward(self, input):

@@ -1,13 +1,14 @@
-"""This module contains simple helper functions """
-from __future__ import print_function
-import torch
-import numpy as np
-from PIL import Image
+"""This module contains simple helper functions"""
+
 import os
+
+import numpy as np
+import torch
+from PIL import Image
 
 
 def tensor2im(input_image, method, imtype=np.uint8):
-    """"Converts a Tensor array into a numpy image array.
+    """ "Converts a Tensor array into a numpy image array.
 
     Parameters:
         input_image (tensor) --  the input image tensor array
@@ -18,36 +19,40 @@ def tensor2im(input_image, method, imtype=np.uint8):
             image_tensor = input_image.data
         else:
             return input_image
-        image_numpy = image_tensor[0].cpu().float().numpy()  # convert it into a numpy array
+        image_numpy = (
+            image_tensor[0].cpu().float().numpy()
+        )  # convert it into a numpy array
         # no need to do anything if image_numpy is 3-dimensiona already but for the other dimensions ...
-        
+
         if image_numpy.shape[0] == 1:  # grayscale to RGB
-            image_numpy = np.tile(image_numpy, (3, 1, 1)) # triple channel
+            image_numpy = np.tile(image_numpy, (3, 1, 1))  # triple channel
             image_numpy = (np.transpose(image_numpy, (1, 2, 0))) * 255.0
-        
-        if image_numpy.shape[0] == 13 or image_numpy.shape[0] == 4: # 13 bands multispectral (or 4 bands NIR) to RGB
+
+        if (
+            image_numpy.shape[0] == 13 or image_numpy.shape[0] == 4
+        ):  # 13 bands multispectral (or 4 bands NIR) to RGB
             # RGB bands are [3, 2, 1]
-            image_numpy = image_numpy[[3, 2, 1], ...]   
-            
+            image_numpy = image_numpy[[3, 2, 1], ...]
+
             # method is either 'resnet' (if opt.alter_initial_mode) or 'default'
-            if method == 'default': # re-normalize from [-1,+1] to [0,+1]
+            if method == "default":  # re-normalize from [-1,+1] to [0,+1]
                 image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
-            elif method == 'resnet': # re-normalize from [0, 5] to [0,+1]
+            elif method == "resnet":  # re-normalize from [0, 5] to [0,+1]
                 image_numpy = (np.transpose(image_numpy, (1, 2, 0))) / 5.0 * 255.0
-        
+
         if image_numpy.shape[0] == 2:  # (VV,VH) SAR to RGB (just taking VV band)
             image_numpy = np.tile(image_numpy[[0]], (3, 1, 1))
-            if method == 'default': # re-normalize from [-1,+1] to [0,+1]
+            if method == "default":  # re-normalize from [-1,+1] to [0,+1]
                 image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
-            elif method == 'resnet':  # re-normalize from [0, 2] to [0,+1]
+            elif method == "resnet":  # re-normalize from [0, 2] to [0,+1]
                 image_numpy = (np.transpose(image_numpy, (1, 2, 0))) / 2.0 * 255.0
-          # post-processing: tranpose and scaling
+    # post-processing: tranpose and scaling
     else:  # if it is a numpy array, do nothing
         image_numpy = input_image
     return image_numpy.astype(imtype)
 
 
-def diagnose_network(net, name='network'):
+def diagnose_network(net, name="network"):
     """Calculate and print the mean of average absolute(gradients)
 
     Parameters:
@@ -86,11 +91,12 @@ def print_numpy(x, val=True, shp=False):
     """
     x = x.astype(np.float64)
     if shp:
-        print('shape,', x.shape)
+        print("shape,", x.shape)
     if val:
         x = x.flatten()
-        print('mean = %3.3f, min = %3.3f, max = %3.3f, median = %3.3f, std=%3.3f' % (
-            np.mean(x), np.min(x), np.max(x), np.median(x), np.std(x)))
+        print(
+            f"mean = {np.mean(x):3.3f}, min = {np.min(x):3.3f}, max = {np.max(x):3.3f}, median = {np.median(x):3.3f}, std={np.std(x):3.3f}"
+        )
 
 
 def mkdirs(paths):
