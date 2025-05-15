@@ -1,11 +1,19 @@
+import ast
+import json
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
-from rasterio.windows import Window
+import pandas as pd
+import rasterio
 
-from dataloader_CIRCA.datasets import CircaPatchDataSet
+from rasterio.windows import Window
+from torch.utils.data import Dataset
+from tqdm.auto import tqdm
+
 from dataloader_CIRCA.tools.data_processor import SentinelDataProcessor
+from dataloader_CIRCA.datasets import CircaPatchDataSet
+import dataloader_CIRCA.tools.positional_encoding as encodings 
 
 
 class UnCRtainTSDataset(CircaPatchDataSet):
@@ -36,7 +44,7 @@ class UnCRtainTSDataset(CircaPatchDataSet):
         - shuffle (bool, optional): Whether to shuffle the dataset. Defaults to False.
         - use_SAR (bool, optional): Whether to include SAR data in the dataset. Defaults to True.
         """
-        super().__init__(
+        super(UnCRtainTSDataset, self).__init__(
             data_optique=data_optique,
             data_radar=data_radar,
             patch_size=patch_size,
@@ -46,7 +54,7 @@ class UnCRtainTSDataset(CircaPatchDataSet):
             use_SAR=use_SAR,
         )
 
-    def __getitem__(self, item: int) -> dict[str, Union[np.ndarray, str, list[str]]]:
+    def __getitem__(self, item: int) -> Dict[str, Union[np.ndarray, str, List[str]]]:
         """
         Retrieves an item from the dataset.
 
@@ -102,3 +110,23 @@ class UnCRtainTSDataset(CircaPatchDataSet):
             "dates_S2": dates_S2_curated,
             "dates_S1": dates_S1_curated,
         }
+
+
+if __name__ == "__main__":
+    store_dai = Path("/home/dl/speillet/Partage/store-dai/")
+    path_dataset_CIRCA = store_dai / "projets/pac/3str/EXP_2"
+    data_optique = path_dataset_CIRCA / "Data_Raster" / "optique_dataset"
+    data_radar = path_dataset_CIRCA / "Data_Raster" / "radar_dataset_v2"
+    patch_size = 256
+    overlap = 0
+    ds = CircaPatchDataSet(
+        data_optique=data_optique,
+        data_radar=data_radar,
+        patch_size=patch_size,
+        overlap=overlap,
+    )
+
+    # ds.setup()
+    # ds.export_dataset()
+    sample = next(iter(ds))
+    print(sample.keys())
