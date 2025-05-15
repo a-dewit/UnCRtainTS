@@ -466,9 +466,6 @@ class UTILISEDataset(CircaPatchDataSet):
         return out
 
 
-
-
-
 if __name__ == "__main__":
 
     store_dai = Path("/home/dl/speillet/Partage/store-dai/")

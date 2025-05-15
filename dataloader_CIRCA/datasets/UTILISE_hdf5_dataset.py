@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import rasterio
 import torch
+torch.multiprocessing.set_sharing_strategy('file_system')
 from rasterio.windows import Window
 from torch.utils.data import Dataset, DataLoader, Subset
 from tqdm.auto import tqdm
@@ -121,7 +122,7 @@ if __name__ == "__main__":
     overlap = 0
 
     SUBSET = True
-    SUBSIZE = 8
+    SUBSIZE = 1000
 
     dataset = UTILISE_HDF5_Dataset(
         data_optique=data_optique,
@@ -130,7 +131,7 @@ if __name__ == "__main__":
         overlap=overlap,
         # load_dataset="datasetCIRCAUnCRtainTS.csv",
     )
-    output_file =  store_dai / "tmp/speillet/test_patches_utilise.hdf5"
+    output_file =  store_dai / "tmp/speillet/subset_1K_circa_utilise.hdf5"
 
     print("Conversion du dataset PyTorch en HDF5...")
     if SUBSET:
