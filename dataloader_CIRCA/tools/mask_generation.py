@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from kornia import morphology as morph
 from torch import Tensor
+from typing import Union
 
 
 def dilate_masks(
@@ -97,7 +98,7 @@ def masks_init_filling(
 
 
 def overlay_seq_with_clouds(
-        images: Tensor, cloud_masks: Tensor, t_masked: np.ndarray | None = None, fill_value: int = 0,
+        images: Tensor, cloud_masks: Tensor, t_masked: Union[np.ndarray, None] = None, fill_value: int = 0,
         dilate_cloud_masks: Optional[bool] = False
 ) -> Tuple[Tensor, Tensor]:
     """

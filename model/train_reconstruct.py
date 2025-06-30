@@ -136,8 +136,8 @@ f, g = torch.Generator(), torch.Generator()
 f.manual_seed(config.rdm_seed + 0)  # note:  this may get re-seeded each epoch
 g.manual_seed(config.rdm_seed)  #        keep this one fixed
 
-if __name__ == "__main__":
-    pprint.pprint(config)
+#if __name__ == "__main__":
+#    pprint.pprint(config)
 
 # instantiate tensorboard logger
 writer = SummaryWriter(
@@ -225,15 +225,17 @@ def prepare_data_multi(batch, device, config):
         if config.batch_size > 1:
             in_S1_td = torch.stack(in_S1_td).T
         x = torch.cat((torch.stack(in_S1, dim=1), torch.stack(in_S2, dim=1)), dim=2)
+        in_S1_td = in_S1_td.detach().clone()
+        in_S2_td = in_S2_td.detach().clone()
         dates = (
-            torch.stack((torch.tensor(in_S1_td), torch.tensor(in_S2_td)))
+            torch.stack((in_S1_td, in_S2_td))
             .float()
             .mean(dim=0)
             .to(device)
         )
     else:
         x = torch.stack(in_S2, dim=1)
-        dates = torch.tensor(in_S2_td).float().to(device)
+        dates = torch.tensor(in_S2_td).detach().clone().float().to(device)
 
     return x, y, in_m, dates
 
@@ -385,11 +387,13 @@ def continuous_matshow(data, min=0, max=1):
 
 
 def iterate(model, data_loader, config, writer, mode="train", epoch=None, device=None):
+    print('COUCOU ITERATE')
     if len(data_loader) == 0:
         raise ValueError("Received data loader with zero samples!")
     # loss meter, needs 1 meter per scalar (see https://tnt.readthedocs.io/en/latest/_modules/torchnet/meter/averagevaluemeter.html);
     loss_meter = tnt.meter.AverageValueMeter()
     img_meter = avg_img_metrics()
+    print(data_loader.dataset[0]['input'].keys())
 
     # collect sample-averaged uncertainties and errors
     errs, errs_se, errs_ae, vars_aleatoric = [], [], [], []

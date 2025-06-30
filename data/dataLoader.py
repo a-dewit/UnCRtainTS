@@ -3,10 +3,12 @@ import os
 import warnings
 from datetime import datetime
 
+from pathlib import Path
 import numpy as np
 from natsort import natsorted
 from tqdm import tqdm
 
+os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 
 def to_date(string):
     return datetime.strptime(string, "%Y-%m-%d")
