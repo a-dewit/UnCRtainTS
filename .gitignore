@@ -10,3 +10,4 @@ lightning_logs/*
 *.egg
 **/__pycache__/
 **/.ipynb_checkpoints/
+**/checkpoints/

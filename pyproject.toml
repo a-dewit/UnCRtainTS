@@ -1,3 +1,0 @@
-[tool.ruff]
-# Active l'analyse des fichiers TOML
-extend-include = ["*.toml"]

@@ -82,6 +82,7 @@ class UTILISE_HDF5_Dataset(CircaPatchDataSet):
             "idx_cloudy_frames": idx_cloudy_frames.tolist(),
             "idx_good_frames": idx_good_frames.tolist(),
             "idx_impaired_frames": idx_cloudy_frames.tolist(),
+            "valid_obs": [1 if i in idx_good_frames else 0 for i in range(len(dates_S2))],
         }
 
 
@@ -105,7 +106,12 @@ def pytorch_dict_2_hdf5(dataset, output_file, num_workers=8):
                     sample_subgroup = sample_group.create_group(f'{key}')
                     for meta_key, meta_value in value.items():
                         if isinstance(meta_value, torch.Tensor):
-                            sample_subgroup.create_dataset(meta_key, data=meta_value, compression='gzip', compression_opts=9)
+                            sample_subgroup.create_dataset(
+                                meta_key,
+                                data=meta_value.squeeze().numpy(),
+                                compression='gzip',
+                                compression_opts=9,
+                            )
                         else:
                             sample_subgroup.create_dataset(meta_key, data=meta_value)
                 else:
@@ -122,16 +128,16 @@ if __name__ == "__main__":
     overlap = 0
 
     SUBSET = True
-    SUBSIZE = 1000
+    SUBSIZE = 8
 
     dataset = UTILISE_HDF5_Dataset(
         data_optique=data_optique,
         data_radar=data_radar,
         patch_size=patch_size,
         overlap=overlap,
-        # load_dataset="datasetCIRCAUnCRtainTS.csv",
+        load_dataset="datasetCIRCAUnCRtainTS.csv",
     )
-    output_file =  store_dai / "tmp/speillet/subset_1K_circa_utilise.hdf5"
+    output_file =  store_dai / "tmp/speillet/debug_circa.hdf5"
 
     print("Conversion du dataset PyTorch en HDF5...")
     if SUBSET:
