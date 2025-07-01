@@ -12,6 +12,16 @@
             "console": "integratedTerminal",
             "args": "${command:pickArgs}"
         },
+
+        {
+            "name": "Apo test reconstruct",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "model/apo_test_reconstruct.py ",
+            "console": "integratedTerminal",
+            "args": "--experiment_name utae --res_dir /media/DATA/ADeWit/3STR/inference --weight_folder /media/DATA/ADeWit/3STR/models --hdf5_file /media/DATA/ADeWit/3STR/dataset/toy_circa_ligth_0.5.hdf5"
+        },
+
         {
             "name": "Train U-TILISE",
             "type": "debugpy",

@@ -124,27 +124,36 @@ class CIRCA_from_HDF5(Dataset):
             raise ValueError("Phase is not defined. Use 'train', 'val', 'train+val', or 'all'.")
 
     def decode_dates(self, dates):
-        return np.asanyarray([el.decode("utf-8") for el in dates])
+        return np.array([d.decode("utf-8") for d in dates])
+        #np.asanyarray([el.decode("utf-8") for el in dates])
 
     def format_item(self, sample: dict):
         """
         Passage de T * C * H * W au bon format pour le modèle.
+        Garde les 10 premières dates
+
         """
+        S1_LAUNCH = str2date("20140403")
+        s1_td = [(str2date(date) - S1_LAUNCH).days for date in sample["S1"]["S1_dates"][:10]]
+        s2_td = [(str2date(date) - S1_LAUNCH).days for date in sample["S1"]["S1_dates"][:10]]
+
         return {
-            "S1": {
-                "S1": torch.from_numpy(sample["S1"]["S1"].astype(np.float32)),  # T * C * H * W
-                "S1_dates": np.array([str2date(date) for date in sample["S1"]["S1_dates"]]),
-            },
-            "S2": {
-                "S2": torch.from_numpy(sample["S2"]["S2"].astype(np.float32)),  # T * C * H * W
-                "S2_dates": np.array([str2date(date) for date in sample["S2"]["S2_dates"]]),
-                "cloud_mask": torch.from_numpy(np.expand_dims(sample["S2"]["cloud_mask"], axis=1).astype(np.float32)),
-                "cloud_prob": torch.from_numpy(np.expand_dims(sample["S2"]["cloud_prob"], axis=1).astype(np.float32)),
-            },
-            "idx_cloudy_frames": torch.from_numpy(sample["idx_cloudy_frames"]),
-            "idx_good_frames": torch.from_numpy(sample["idx_good_frames"]),
-            "idx_impaired_frames": torch.from_numpy(sample["idx_impaired_frames"]),
-            "valid_obs": torch.from_numpy(sample["valid_obs"]),
+            "input": {
+                "S1": torch.from_numpy(sample["S1"]["S1"][:10,:,:,:].astype(np.float32)),  # T * C * H * W
+                "S1_dates": np.array([date.astype(np.int64) for date in sample["S1"]["S1_dates"][:10]]),
+                #np.array([str2date(date) for date in sample["S1"]["S1_dates"][:10]]),
+                "S2": torch.from_numpy(sample["S2"]["S2"][:10,:,:,:].astype(np.float32)),  # T * C * H * W
+                "S2_dates": np.array([date.astype(np.int64) for date in sample["S2"]["S2_dates"][:10]]),
+                #np.array([str2date(date) for date in sample["S2"]["S2_dates"][:10]]),
+                "S1 TD": np.array(s1_td),
+                "S2 TD": np.array(s2_td),
+                "cloud_mask": torch.from_numpy(np.expand_dims(sample["S2"]["cloud_mask"][:10], axis=1).astype(np.float32)),
+                "cloud_prob": torch.from_numpy(np.expand_dims(sample["S2"]["cloud_prob"][:10], axis=1).astype(np.float32)),
+                "idx_cloudy_frames": torch.from_numpy(sample["idx_cloudy_frames"][:10]),
+                "idx_good_frames": torch.from_numpy(sample["idx_good_frames"][:10]),
+                "idx_impaired_frames": torch.from_numpy(sample["idx_impaired_frames"][:10]),
+                "valid_obs": torch.from_numpy(sample["valid_obs"][:10])
+            }
         }
 
     def etl_item(self, item: int) -> dict[str, Union[np.ndarray, list[str]]]:
@@ -166,6 +175,8 @@ class CIRCA_from_HDF5(Dataset):
             "idx_impaired_frames": patch["idx_impaired_frames"][:],
             "valid_obs": patch["valid_obs"][:],
         }
+        t = self.format_item(sample)
+        print(t['input']['S1_dates'].dtype, t['input']['S1_dates'][0])
         return self.format_item(sample)
 
     def __getitem__(
@@ -174,10 +185,12 @@ class CIRCA_from_HDF5(Dataset):
     ) -> dict[str, torch.Tensor]:
         patch_data = self.etl_item(item=item)
         # Select the correct channels
-        if self.num_channels != patch_data["S2"]["S2"].shape[1]:
-            patch_data["S2"]["S2"] = patch_data["S2"]["S2"][:, self.s2_channels, :, :]
+        if self.num_channels != patch_data["input"]["S2"].shape[1]:
+            patch_data["input"]["S2"] = patch_data["input"]["S2"][:, self.s2_channels, :, :]
         return patch_data
 
+    def __len__(self):
+        return len(self.patches_dataset)
 
 ######################################################################################
 ######################################################################################
@@ -198,3 +211,4 @@ if __name__ == "__main__":
     print(dataset)
     sample = next(iter(dataset))
     print(sample.keys())
+    print(dataset.__getitem__(0))
