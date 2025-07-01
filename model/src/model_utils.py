@@ -5,6 +5,7 @@ import torch
 sub_dir = os.path.join(os.getcwd(), "model")
 if os.path.isdir(sub_dir):
     os.chdir(sub_dir)
+
 from src.backbones import base_model, uncrtaints, utae
 
 S1_BANDS = 2
@@ -136,15 +137,11 @@ def save_model(config, epoch, model, name):
 def load_model(config, model, train_out_layer=True, load_out_partly=True):
     # load pre-trained checkpoints, but only of matching weigths
 
-    pretrained_dict = torch.load(config.trained_checkp, map_location=config.device)[
-        "state_dict_G"
-    ]
+    pretrained_dict = torch.load(config.trained_checkp, map_location=config.device)["state_dict_G"]
     model_dict = model.netG.state_dict()
 
     not_str = "" if pretrained_dict.keys() == model_dict.keys() else "not "
-    print(
-        f"The new and the (pre-)trained model architectures are {not_str}identical.\n"
-    )
+    print(f"The new and the (pre-)trained model architectures are {not_str}identical.\n")
 
     try:  # try loading checkpoint strictly, all weights must match
         # (this is satisfied e.g. when resuming training)
@@ -152,9 +149,7 @@ def load_model(config, model, train_out_layer=True, load_out_partly=True):
         if train_out_layer:
             raise NotImplementedError  # move to 'except' case
         model.netG.load_state_dict(pretrained_dict, strict=True)
-        freeze_layers(
-            model.netG, grad=True
-        )  # set all weights to trainable, no need to freeze
+        freeze_layers(model.netG, grad=True)  # set all weights to trainable, no need to freeze
         model.frozen, freeze_these = False, []  # ... as all weights match appropriately
     except:  # if some weights don't match (e.g. when loading from pre-trained U-Net), then only load the compatible subset ...
         #     ... freeze compatible weights and make the incompatibel weights trainable
@@ -167,15 +162,9 @@ def load_model(config, model, train_out_layer=True, load_out_partly=True):
                 model_dict["out_conv.conv.conv.0.weight"],
                 model_dict["out_conv.conv.conv.0.bias"],
             )
-            temp_weights[:S2_BANDS, ...] = pretrained_dict[
-                "out_conv.conv.conv.0.weight"
-            ][:S2_BANDS, ...]
-            temp_biases[:S2_BANDS, ...] = pretrained_dict["out_conv.conv.conv.0.bias"][
-                :S2_BANDS, ...
-            ]
-            pretrained_dict["out_conv.conv.conv.0.weight"] = temp_weights[
-                :S2_BANDS, ...
-            ]
+            temp_weights[:S2_BANDS, ...] = pretrained_dict["out_conv.conv.conv.0.weight"][:S2_BANDS, ...]
+            temp_biases[:S2_BANDS, ...] = pretrained_dict["out_conv.conv.conv.0.bias"][:S2_BANDS, ...]
+            pretrained_dict["out_conv.conv.conv.0.weight"] = temp_weights[:S2_BANDS, ...]
             pretrained_dict["out_conv.conv.conv.0.bias"] = temp_biases[:S2_BANDS, ...]
             """
             if 'out_conv.conv.conv.0.weight' in pretrained_dict: # if predicting from a model with a single output layer for both mean and var
@@ -187,54 +176,34 @@ def load_model(config, model, train_out_layer=True, load_out_partly=True):
             """
 
         # check for size mismatch and exclude layers whose dimensions mismatch (they won't be loaded)
-        pretrained_dict = {
-            k: v
-            for k, v in pretrained_dict.items()
-            if k in model_dict and v.size() == model_dict[k].size()
-        }
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict and v.size() == model_dict[k].size()}
         model_dict.update(pretrained_dict)
         model.netG.load_state_dict(model_dict, strict=False)
 
         # freeze pretrained weights
         model.frozen = True
-        freeze_layers(
-            model.netG, grad=True
-        )  # set all weights to trainable, except final ...
+        freeze_layers(model.netG, grad=True)  # set all weights to trainable, except final ...
         if train_out_layer:
             # freeze all but last layer
-            all_but_last = {
-                k: v
-                for k, v in pretrained_dict.items()
-                if "out_conv.conv.conv.0" not in k
-            }
+            all_but_last = {k: v for k, v in pretrained_dict.items() if "out_conv.conv.conv.0" not in k}
             freeze_layers(model.netG, apply_to=all_but_last, grad=False)
             freeze_these = list(all_but_last.keys())
         else:  # freeze all pre-trained layers, without exceptions
             freeze_layers(model.netG, apply_to=pretrained_dict, grad=False)
             freeze_these = list(pretrained_dict.keys())
-    train_these = [
-        train_layer
-        for train_layer in list(model_dict.keys())
-        if train_layer not in freeze_these
-    ]
+    train_these = [train_layer for train_layer in list(model_dict.keys()) if train_layer not in freeze_these]
     print(f"\nFroze these layers: {freeze_these}")
     print(f"\nTrain these layers: {train_these}")
 
     if config.resume_from:
         resume_at = int(config.trained_checkp.split(".pth.tar")[0].split("_")[-1])
-        print(
-            f"\nResuming training at epoch {resume_at + 1}/{config.epochs}, loading optimizers and schedulers"
-        )
+        print(f"\nResuming training at epoch {resume_at + 1}/{config.epochs}, loading optimizers and schedulers")
         # if continuing training, then also load states of previous runs' optimizers and schedulers
         # ---else, we start optimizing from scratch but with the model parameters loaded above
-        optimizer_G_dict = torch.load(
-            config.trained_checkp, map_location=config.device
-        )["optimizer_G"]
+        optimizer_G_dict = torch.load(config.trained_checkp, map_location=config.device)["optimizer_G"]
         model.optimizer_G.load_state_dict(optimizer_G_dict)
 
-        scheduler_G_dict = torch.load(
-            config.trained_checkp, map_location=config.device
-        )["scheduler_G"]
+        scheduler_G_dict = torch.load(config.trained_checkp, map_location=config.device)["scheduler_G"]
         model.scheduler_G.load_state_dict(scheduler_G_dict)
 
     # no return value, models are passed by reference

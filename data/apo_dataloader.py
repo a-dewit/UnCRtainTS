@@ -1,22 +1,16 @@
-import sys
+import datetime as dt
 from pathlib import Path
-
-sys.path.append(str(Path(__file__).parents[2]))
 from typing import Optional, Union
 
+import h5py
 import numpy as np
 import pandas as pd
 import torch
-
-torch.multiprocessing.set_sharing_strategy("file_system")
-
-import datetime as dt
-
-import h5py
 from torch.utils.data import Dataset
 
 from data.constants import MGRSC_SPLITS
-from data.apo_dataloader import CIRCA_from_HDF5
+
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 MAX_SEQ_LENGTH = 30
 MIN_SEQ_LENGTH = 5
@@ -48,6 +42,9 @@ class CIRCA_from_HDF5(Dataset):
         self.rng = np.random.default_rng(seed=SEED)  # Def random number generator
         self.hdf5_file, self.patches_dataset = self.setup_hdf5_file(hdf5_file)
         self.num_channels, self.c_index_rgb, self.c_index_nir, self.s2_channels = self.setup_channels(channels)
+
+    def __len__(self):
+        return len(self.patches_dataset)
 
     def setup_hdf5_file(self, path_file):
         if Path(path_file).exists():
@@ -109,13 +106,9 @@ class CIRCA_from_HDF5(Dataset):
     def splits_samples(self, patches_dataset: pd.DataFrame, phase: str) -> pd.DataFrame:
         if phase is not None:
             if phase in MGRSC_SPLITS:
-                patches_dataset = patches_dataset[patches_dataset["mgrs25"].isin(MGRSC_SPLITS[self.phase])].reset_index(
-                    drop=True
-                )
+                patches_dataset = patches_dataset[patches_dataset["mgrs25"].isin(MGRSC_SPLITS[self.phase])].reset_index(drop=True)
             elif phase == "train+val":
-                patches_dataset = patches_dataset[
-                    patches_dataset["mgrs25"].isin(MGRSC_SPLITS["train"] + MGRSC_SPLITS["val"])
-                ].reset_index(drop=True)
+                patches_dataset = patches_dataset[patches_dataset["mgrs25"].isin(MGRSC_SPLITS["train"] + MGRSC_SPLITS["val"])].reset_index(drop=True)
             elif phase == "all":
                 pass
             else:
