@@ -9,7 +9,7 @@ import torch
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
-from data.constants import MGRSC_SPLITS
+from data.constants.circa_splits_constants import MGRSC_SPLITS
 
 # Set multiprocessing sharing strategy
 torch.multiprocessing.set_sharing_strategy("file_system")
