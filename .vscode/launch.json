@@ -1,0 +1,49 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": "${command:pickArgs}"
+        },
+        {
+            "name": "Train U-TILISE",
+            "type": "debugpy",
+            "request": "launch",
+            "preLaunchTask": "clean_training",
+            "program": "run_train.py",
+            "console": "integratedTerminal",
+            "args": [
+                "./configs/config_circa_train.yaml",
+                "--save_dir",
+                "/home/SPeillet/Downloads/data/outputs/train",
+            ]
+        },
+        {
+            "name": "Eval U-TILISE",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "run_eval.py",
+            "console": "integratedTerminal",
+            "args": [
+                "/home/SPeillet/Downloads/data/outputs/debug/config.yaml",
+                "utilise",
+                "--checkpoint",
+                "/home/SPeillet/Downloads/data/outputs/debug/checkpoints/Model_best.pth",
+                "--test-data.data-dir",
+                "/home/SPeillet/Downloads/data/",
+                "--test-data.hdf5-file",
+                "/home/SPeillet/Downloads/data/toy_circa_ligth_0.5.hdf5",
+                //                "/home/SPeillet/Downloads/data/circa_cloud_removal.hdf5",
+                "--test-data.mode",
+                "val",
+            ]
+        },
+    ]
+}

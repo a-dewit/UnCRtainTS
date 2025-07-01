@@ -35,7 +35,7 @@ from src.model_utils import (
 )
 from torch.utils.tensorboard import SummaryWriter
 
-from data.dataLoader import SEN12MSCR, SEN12MSCRTS
+from data.apo_dataloader import CIRCA_from_HDF5
 
 S2_BANDS = 13
 parser = create_parser(mode="train")
@@ -136,8 +136,8 @@ f, g = torch.Generator(), torch.Generator()
 f.manual_seed(config.rdm_seed + 0)  # note:  this may get re-seeded each epoch
 g.manual_seed(config.rdm_seed)  #        keep this one fixed
 
-if __name__ == "__main__":
-    pprint.pprint(config)
+#if __name__ == "__main__":
+#    pprint.pprint(config)
 
 # instantiate tensorboard logger
 writer = SummaryWriter(
@@ -793,53 +793,27 @@ def main(config):
     device = torch.device(config.device)
 
     # define data sets
-    if config.pretrain:  # pretrain / training on mono-temporal data
-        dt_train = SEN12MSCR(
-            os.path.expanduser(config.root3),
-            split="train",
-            region=config.region,
-            sample_type=config.sample_type,
-        )
-        dt_val = SEN12MSCR(
-            os.path.expanduser(config.root3),
-            split="val",
-            region=config.region,
-            sample_type=config.sample_type,
-        )
-        dt_test = SEN12MSCR(
-            os.path.expanduser(config.root3),
-            split="test",
-            region=config.region,
-            sample_type=config.sample_type,
-        )
-    else:
-        dt_train = SEN12MSCRTS(
-            os.path.expanduser(config.root1),
-            split="train",
-            region=config.region,
-            sample_type=config.sample_type,
-            sampler="random" if config.vary_samples else "fixed",
-            n_input_samples=config.input_t,
-            import_data_path=import_from_path("train", config),
-            min_cov=config.min_cov,
-            max_cov=config.max_cov,
-        )
-        dt_val = SEN12MSCRTS(
-            os.path.expanduser(config.root2),
-            split="val",
-            region="all",
-            sample_type=config.sample_type,
-            n_input_samples=config.input_t,
-            import_data_path=import_from_path("val", config),
-        )
-        dt_test = SEN12MSCRTS(
-            os.path.expanduser(config.root2),
-            split="test",
-            region="all",
-            sample_type=config.sample_type,
-            n_input_samples=config.input_t,
-            import_data_path=import_from_path("test", config),
-        )
+    dt_train = CIRCA_from_HDF5(
+        hdf5_file=config.hdf5_file,
+        phase="train",
+        shuffle=False,
+        channels="all",
+    )
+
+    dt_val = CIRCA_from_HDF5(
+        hdf5_file=config.hdf5_file,
+        phase="val",
+        shuffle=False,
+        channels="all",
+    )
+
+    dt_test = CIRCA_from_HDF5(
+        hdf5_file=config.hdf5_file,
+        phase="all",
+        shuffle=False,
+        channels="all",
+    )
+
 
     # wrap to allow for subsampling, e.g. for test runs etc
     dt_train = torch.utils.data.Subset(

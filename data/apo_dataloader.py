@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parents[2]))
+sys.path.append(str(Path(__file__).parents[1]))
 from typing import Optional, Union
 
 import numpy as np
@@ -16,7 +16,6 @@ import h5py
 from torch.utils.data import Dataset
 
 from data.constants import MGRSC_SPLITS
-from data.apo_dataloader import CIRCA_from_HDF5
 
 MAX_SEQ_LENGTH = 30
 MIN_SEQ_LENGTH = 5
@@ -63,7 +62,7 @@ class CIRCA_from_HDF5(Dataset):
         if channels == "all":
             num_channels = 10
             c_index_rgb = torch.Tensor([2, 1, 0]).long()
-            c_index_nir = torch.Tensor([6]).long()
+            c_index_nir = torch.Tensor([6]).long() #index 6 : B8
             s2_channels = list(np.arange(10))
         elif channels == "bgr-nir":
             num_channels = 4
@@ -186,8 +185,8 @@ class CIRCA_from_HDF5(Dataset):
 
 if __name__ == "__main__":
 
-    path_dataset_circa = Path("/home/SPeillet/Downloads/data")
-    hdf5_file = path_dataset_circa / "circa_cloud_removal.hdf5"
+    path_dataset_circa = Path("/media/DATA/ADeWit/3STR/dataset")
+    hdf5_file = path_dataset_circa / "toy_circa_ligth_0.5.hdf5"
 
     # Import des données depuis un fichier hdf5
     dataset = CIRCA_from_HDF5(
@@ -196,5 +195,6 @@ if __name__ == "__main__":
         shuffle=False,
         channels="all",
     )
+    print(dataset)
     sample = next(iter(dataset))
     print(sample.keys())
