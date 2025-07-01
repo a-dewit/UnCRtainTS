@@ -35,13 +35,11 @@ from src.model_utils import (
 )
 from torch.utils.tensorboard import SummaryWriter
 
-from data.dataLoader import SEN12MSCR, SEN12MSCRTS
+from data.uncrtaints_dataloader import UnCRtainTS_from_hdf5
 
 S2_BANDS = 13
 parser = create_parser(mode="train")
-config = utils.str2list(
-    parser.parse_args(), list_args=["encoder_widths", "decoder_widths", "out_conv"]
-)
+config = utils.str2list(parser.parse_args(), list_args=["encoder_widths", "decoder_widths", "out_conv"])
 
 if config.model in ["unet", "utae"]:
     assert len(config.encoder_widths) == len(config.decoder_widths)
@@ -93,17 +91,13 @@ if config.resume_from:
             "decoder_widths",
             "lr",
         ]
-        conf_dict = {
-            key: val for key, val in json.load(f).items() if key not in no_overwrite
-        }
+        conf_dict = {key: val for key, val in json.load(f).items() if key not in no_overwrite}
         for key, val in vars(config).items():
             if key in no_overwrite:
                 conf_dict[key] = val
         t_args.__dict__.update(conf_dict)
         config = parser.parse_args(namespace=t_args)
-config = utils.str2list(
-    config, list_args=["encoder_widths", "decoder_widths", "out_conv"]
-)
+config = utils.str2list(config, list_args=["encoder_widths", "decoder_widths", "out_conv"])
 
 # resume at a specified epoch and update optimizer accordingly
 if config.resume_at >= 0:
@@ -140,9 +134,7 @@ if __name__ == "__main__":
     pprint.pprint(config)
 
 # instantiate tensorboard logger
-writer = SummaryWriter(
-    os.path.join(os.path.dirname(config.res_dir), "logs", config.experiment_name)
-)
+writer = SummaryWriter(os.path.join(os.path.dirname(config.res_dir), "logs", config.experiment_name))
 
 
 def plot_img(imgs, mod, plot_dir, file_id=None):
@@ -166,9 +158,7 @@ def plot_img(imgs, mod, plot_dir, file_id=None):
             else:
                 raise NotImplementedError
             if file_id is not None:  # export into file name
-                img = img.clip(
-                    val_min, val_max
-                )  # note: this only removes outliers, vmin/vmax below do the global rescaling (else doing instance-wise min/max scaling)
+                img = img.clip(val_min, val_max)  # note: this only removes outliers, vmin/vmax below do the global rescaling (else doing instance-wise min/max scaling)
                 plt.imsave(
                     os.path.join(plot_dir, f"img-{file_id}_{mod}{time}.png"),
                     np.moveaxis(img, 0, -1).squeeze(),
@@ -213,9 +203,7 @@ def prepare_data_multi(batch, device, config):
     in_S2_td = recursive_todevice(batch["input"]["S2 TD"], device)
     if config.batch_size > 1:
         in_S2_td = torch.stack(in_S2_td).T
-    in_m = torch.stack(recursive_todevice(batch["input"]["masks"], device)).swapaxes(
-        0, 1
-    )
+    in_m = torch.stack(recursive_todevice(batch["input"]["masks"], device)).swapaxes(0, 1)
     target_S2 = recursive_todevice(batch["target"]["S2"], device)
     y = torch.cat(target_S2, dim=0).unsqueeze(1)
 
@@ -225,12 +213,7 @@ def prepare_data_multi(batch, device, config):
         if config.batch_size > 1:
             in_S1_td = torch.stack(in_S1_td).T
         x = torch.cat((torch.stack(in_S1, dim=1), torch.stack(in_S2, dim=1)), dim=2)
-        dates = (
-            torch.stack((torch.tensor(in_S1_td), torch.tensor(in_S2_td)))
-            .float()
-            .mean(dim=0)
-            .to(device)
-        )
+        dates = torch.stack((torch.tensor(in_S1_td), torch.tensor(in_S2_td))).float().mean(dim=0).to(device)
     else:
         x = torch.stack(in_S2, dim=1)
         dates = torch.tensor(in_S2_td).float().to(device)
@@ -254,29 +237,15 @@ def log_aleatoric(writer, config, mode, step, var, name, img_meter=None):
             scale_rel_left, scale_rel_right = -max_abs, +max_abs
             fig = continuous_matshow(img, min=scale_rel_left, max=scale_rel_right)
             writer.add_figure(f"Img/{mode}/patch covmat relative {bdx}", fig, step)
-            scale_center0_absolute = (
-                1 / 4 * 1**2
-            )  # assuming covmat has been rescaled already, this is an upper bound
-            fig = continuous_matshow(
-                img, min=-scale_center0_absolute, max=scale_center0_absolute
-            )
+            scale_center0_absolute = 1 / 4 * 1**2  # assuming covmat has been rescaled already, this is an upper bound
+            fig = continuous_matshow(img, min=-scale_center0_absolute, max=scale_center0_absolute)
             writer.add_figure(f"Img/{mode}/patch covmat absolute {bdx}", fig, step)
 
     # aleatoric uncertainty: comput during train, val and test
     # note: the quantile statistics are computed solely over the variances (and would be much different if involving covariances, e.g. in the isotopic case)
-    avg_var = torch.mean(
-        var, dim=2, keepdim=True
-    )  # avg over bands, note: this only considers variances (else diag COV's avg would be tiny)
-    q50 = (
-        avg_var[:, 0, ...].view(avg_var.shape[0], -1).median(dim=-1)[0].detach().clone()
-    )
-    q75 = (
-        avg_var[:, 0, ...]
-        .view(avg_var.shape[0], -1)
-        .quantile(0.75, dim=-1)
-        .detach()
-        .clone()
-    )
+    avg_var = torch.mean(var, dim=2, keepdim=True)  # avg over bands, note: this only considers variances (else diag COV's avg would be tiny)
+    q50 = avg_var[:, 0, ...].view(avg_var.shape[0], -1).median(dim=-1)[0].detach().clone()
+    q75 = avg_var[:, 0, ...].view(avg_var.shape[0], -1).quantile(0.75, dim=-1).detach().clone()
     q50, q75 = q50[0], q75[0]  # take batch's first item as a summary
     binning = 256  # see: https://pytorch.org/docs/stable/tensorboard.html#torch.utils.tensorboard.writer.SummaryWriter.add_histogram
 
@@ -320,25 +289,13 @@ def log_train(writer, config, model, step, x, out, y, in_m, name="", var=None):
     writer.add_scalar(f"train/{name}total", loss, step)
     # use add_images for batch-wise adding across temporal dimension
     if config.use_sar:
-        writer.add_image(
-            f"Img/train/{name}in_s1", x[0, :, [0], ...], step, dataformats="NCHW"
-        )
-        writer.add_image(
-            f"Img/train/{name}in_s2", x[0, :, [5, 4, 3], ...], step, dataformats="NCHW"
-        )
+        writer.add_image(f"Img/train/{name}in_s1", x[0, :, [0], ...], step, dataformats="NCHW")
+        writer.add_image(f"Img/train/{name}in_s2", x[0, :, [5, 4, 3], ...], step, dataformats="NCHW")
     else:
-        writer.add_image(
-            f"Img/train/{name}in_s2", x[0, :, [3, 2, 1], ...], step, dataformats="NCHW"
-        )
-    writer.add_image(
-        f"Img/train/{name}out", out[0, 0, [3, 2, 1], ...], step, dataformats="CHW"
-    )
-    writer.add_image(
-        f"Img/train/{name}y", y[0, 0, [3, 2, 1], ...], step, dataformats="CHW"
-    )
-    writer.add_image(
-        f"Img/train/{name}m", in_m[0, :, None, ...], step, dataformats="NCHW"
-    )
+        writer.add_image(f"Img/train/{name}in_s2", x[0, :, [3, 2, 1], ...], step, dataformats="NCHW")
+    writer.add_image(f"Img/train/{name}out", out[0, 0, [3, 2, 1], ...], step, dataformats="CHW")
+    writer.add_image(f"Img/train/{name}y", y[0, 0, [3, 2, 1], ...], step, dataformats="CHW")
+    writer.add_image(f"Img/train/{name}m", in_m[0, :, None, ...], step, dataformats="NCHW")
 
     # analyse cloud coverage
 
@@ -563,35 +520,19 @@ def iterate(model, data_loader, config, writer, mode="train", epoch=None, device
 
         # use add_images for batch-wise adding across temporal dimension
         if config.use_sar:
-            writer.add_image(
-                f"Img/{mode}/in_s1", x[0, :, [0], ...], step, dataformats="NCHW"
-            )
-            writer.add_image(
-                f"Img/{mode}/in_s2", x[0, :, [5, 4, 3], ...], step, dataformats="NCHW"
-            )
+            writer.add_image(f"Img/{mode}/in_s1", x[0, :, [0], ...], step, dataformats="NCHW")
+            writer.add_image(f"Img/{mode}/in_s2", x[0, :, [5, 4, 3], ...], step, dataformats="NCHW")
         else:
-            writer.add_image(
-                f"Img/{mode}/in_s2", x[0, :, [3, 2, 1], ...], step, dataformats="NCHW"
-            )
-        writer.add_image(
-            f"Img/{mode}/out", out[0, 0, [3, 2, 1], ...], step, dataformats="CHW"
-        )
-        writer.add_image(
-            f"Img/{mode}/y", y[0, 0, [3, 2, 1], ...], step, dataformats="CHW"
-        )
-        writer.add_image(
-            f"Img/{mode}/m", in_m[0, :, None, ...], step, dataformats="NCHW"
-        )
+            writer.add_image(f"Img/{mode}/in_s2", x[0, :, [3, 2, 1], ...], step, dataformats="NCHW")
+        writer.add_image(f"Img/{mode}/out", out[0, 0, [3, 2, 1], ...], step, dataformats="CHW")
+        writer.add_image(f"Img/{mode}/y", y[0, 0, [3, 2, 1], ...], step, dataformats="CHW")
+        writer.add_image(f"Img/{mode}/m", in_m[0, :, None, ...], step, dataformats="NCHW")
 
         # compute Expected Calibration Error (ECE)
         if config.loss in ["GNLL", "MGNLL"]:
-            sorted_errors_se = compute_ece(
-                vars_aleatoric, errs_se, len(data_loader.dataset), percent=5
-            )
+            sorted_errors_se = compute_ece(vars_aleatoric, errs_se, len(data_loader.dataset), percent=5)
             sorted_errors = {"se_sortAleatoric": sorted_errors_se}
-            plot_discard(
-                sorted_errors["se_sortAleatoric"], config, mode, step, is_se=True
-            )
+            plot_discard(sorted_errors["se_sortAleatoric"], config, mode, step, is_se=True)
 
             # compute ECE
             uce_l2, auce_l2 = compute_uce_auce(
@@ -671,9 +612,7 @@ def compute_ece(vars, errors, n_samples, percent=5):
     # incrementally remove 5% of errors, ranked by highest uncertainty
     bins = torch.linspace(0, n_samples, 100 // percent + 1, dtype=int)[1:]
     # get uncertainty-sorted cumulative errors, i.e. at x-tick 65% we report the average error for the 65% most certain predictions
-    sorted_errors = np.array(
-        [torch.nanmean(errs_sort[:rdx]).cpu().numpy() for rdx in bins]
-    )
+    sorted_errors = np.array([torch.nanmean(errs_sort[:rdx]).cpu().numpy() for rdx in bins])
 
     return sorted_errors
 
@@ -699,19 +638,11 @@ def compute_uce_auce(var, errors, n_samples, percent=5, l2=True, mode="val", ste
     # compute bin-wise statistics, defaults to nan if no data contained in bin
     bk_var, bk_err = torch.empty(n_bins), torch.empty(n_bins)
     for bin_idx in range(n_bins):  # for each of the n_bins ...
-        bk_var[bin_idx] = metric(
-            var[var_idx == bin_idx].sqrt()
-        )  # note: taking the sqrt to wrap into metric function,
-        bk_err[bin_idx] = metric(
-            errors[var_idx == bin_idx]
-        )  # apply same metric function on error
+        bk_var[bin_idx] = metric(var[var_idx == bin_idx].sqrt())  # note: taking the sqrt to wrap into metric function,
+        bk_err[bin_idx] = metric(errors[var_idx == bin_idx])  # apply same metric function on error
 
-    calib_err = torch.abs(
-        bk_err - bk_var
-    )  # calibration error: discrepancy of error vs uncertainty
-    bk_weight = (
-        torch.histogram(var_idx, n_bins)[0] / n_samples
-    )  # fraction of total data per bin, for bin-weighting
+    calib_err = torch.abs(bk_err - bk_var)  # calibration error: discrepancy of error vs uncertainty
+    bk_weight = torch.histogram(var_idx, n_bins)[0] / n_samples  # fraction of total data per bin, for bin-weighting
     uce = torch.nansum(bk_weight * calib_err)  # calc. weighted UCE,
     auce = torch.nanmean(calib_err)  # calc. unweighted AUCE
 
@@ -757,9 +688,7 @@ def prepare_output(config):
 
 
 def checkpoint(log, config):
-    with open(
-        os.path.join(config.res_dir, config.experiment_name, "trainlog.json"), "w"
-    ) as outfile:
+    with open(os.path.join(config.res_dir, config.experiment_name, "trainlog.json"), "w") as outfile:
         json.dump(log, outfile, indent=4)
 
 
@@ -770,9 +699,7 @@ def save_results(metrics, path, split="test"):
 
 # check for file of pre-computed statistics, e.g. indices or cloud coverage
 def import_from_path(split, config):
-    if os.path.exists(
-        os.path.join(os.path.dirname(os.getcwd()), "util", "precomputed")
-    ):
+    if os.path.exists(os.path.join(os.path.dirname(os.getcwd()), "util", "precomputed")):
         import_path = os.path.join(
             os.path.dirname(os.getcwd()),
             "util",
@@ -793,53 +720,33 @@ def main(config):
     device = torch.device(config.device)
 
     # define data sets
-    if config.pretrain:  # pretrain / training on mono-temporal data
-        dt_train = SEN12MSCR(
-            os.path.expanduser(config.root3),
-            split="train",
-            region=config.region,
-            sample_type=config.sample_type,
-        )
-        dt_val = SEN12MSCR(
-            os.path.expanduser(config.root3),
-            split="val",
-            region=config.region,
-            sample_type=config.sample_type,
-        )
-        dt_test = SEN12MSCR(
-            os.path.expanduser(config.root3),
-            split="test",
-            region=config.region,
-            sample_type=config.sample_type,
-        )
-    else:
-        dt_train = SEN12MSCRTS(
-            os.path.expanduser(config.root1),
-            split="train",
-            region=config.region,
-            sample_type=config.sample_type,
-            sampler="random" if config.vary_samples else "fixed",
-            n_input_samples=config.input_t,
-            import_data_path=import_from_path("train", config),
-            min_cov=config.min_cov,
-            max_cov=config.max_cov,
-        )
-        dt_val = SEN12MSCRTS(
-            os.path.expanduser(config.root2),
-            split="val",
-            region="all",
-            sample_type=config.sample_type,
-            n_input_samples=config.input_t,
-            import_data_path=import_from_path("val", config),
-        )
-        dt_test = SEN12MSCRTS(
-            os.path.expanduser(config.root2),
-            split="test",
-            region="all",
-            sample_type=config.sample_type,
-            n_input_samples=config.input_t,
-            import_data_path=import_from_path("test", config),
-        )
+    dt_train = UnCRtainTS_from_hdf5(
+        os.path.expanduser(config.root1),
+        split="train",
+        region=config.region,
+        sample_type=config.sample_type,
+        sampler="random" if config.vary_samples else "fixed",
+        n_input_samples=config.input_t,
+        import_data_path=import_from_path("train", config),
+        min_cov=config.min_cov,
+        max_cov=config.max_cov,
+    )
+    dt_val = UnCRtainTS_from_hdf5(
+        os.path.expanduser(config.root2),
+        split="val",
+        region="all",
+        sample_type=config.sample_type,
+        n_input_samples=config.input_t,
+        import_data_path=import_from_path("val", config),
+    )
+    dt_test = UnCRtainTS_from_hdf5(
+        os.path.expanduser(config.root2),
+        split="test",
+        region="all",
+        sample_type=config.sample_type,
+        n_input_samples=config.input_t,
+        import_data_path=import_from_path("test", config),
+    )
 
     # wrap to allow for subsampling, e.g. for test runs etc
     dt_train = torch.utils.data.Subset(
@@ -931,9 +838,7 @@ def main(config):
             load_out_partly=config.model in ["uncrtaints"],
         )
 
-    with open(
-        os.path.join(config.res_dir, config.experiment_name, "conf.json"), "w"
-    ) as file:
+    with open(os.path.join(config.res_dir, config.experiment_name, "conf.json"), "w") as file:
         file.write(json.dumps(vars(config), indent=4))
     print(f"TOTAL TRAINABLE PARAMETERS: {config.N_params}\n")
     print(model)
@@ -948,11 +853,7 @@ def main(config):
     trainlog = {}
 
     # resume training at scheduler's latest epoch, != 0 if --resume_from
-    begin_at = (
-        config.resume_at
-        if config.resume_at >= 0
-        else model.scheduler_G.state_dict()["last_epoch"]
-    )
+    begin_at = config.resume_at if config.resume_at >= 0 else model.scheduler_G.state_dict()["last_epoch"]
     for epoch in range(begin_at + 1, config.epochs + 1):
         print(f"\nEPOCH {epoch}/{config.epochs}")
 
@@ -1022,9 +923,7 @@ def main(config):
                 os.path.join(config.res_dir, config.experiment_name),
                 split=f"val_epoch_{epoch}",
             )
-            print(
-                f"\nLogged validation epoch {epoch} metrics to path {os.path.join(config.res_dir, config.experiment_name)}"
-            )
+            print(f"\nLogged validation epoch {epoch} metrics to path {os.path.join(config.res_dir, config.experiment_name)}")
 
             # checkpoint best model
             trainlog[epoch] = {**train_metrics, **val_metrics}
@@ -1069,9 +968,7 @@ def main(config):
         os.path.join(config.res_dir, config.experiment_name),
         split="test",
     )
-    print(
-        f"\nLogged test metrics to path {os.path.join(config.res_dir, config.experiment_name)}"
-    )
+    print(f"\nLogged test metrics to path {os.path.join(config.res_dir, config.experiment_name)}")
 
     # close tensorboard logging
     writer.close()

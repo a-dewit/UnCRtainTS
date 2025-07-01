@@ -28,7 +28,7 @@ from train_reconstruct import (
     seed_packages,
 )
 
-from data.dataLoader import SEN12MSCR, SEN12MSCRTS, get_pairedS1
+from data.uncrtaints_dataloader import UnCRtainTS_from_hdf5
 
 parser = create_parser(mode="test")
 test_config = parser.parse_args()
@@ -39,21 +39,12 @@ test_config.pid = os.getpid()
 # related to flag --use_custom:
 # define custom target S2 patches (these will be mosaiced into a single sample), and fetch associated target S1 patches as well as input data
 # (TODO: keeping this hard-coded until a more convenient way to pass it as an argument comes about ...)
-targ_s2 = [
-    f"ROIs1868/73/S2/14/s2_ROIs1868_73_ImgNo_14_2018-06-21_patch_{pdx}.tif"
-    for pdx in [171, 172, 173, 187, 188, 189, 203, 204, 205]
-]
+targ_s2 = [f"ROIs1868/73/S2/14/s2_ROIs1868_73_ImgNo_14_2018-06-21_patch_{pdx}.tif" for pdx in [171, 172, 173, 187, 188, 189, 203, 204, 205]]
 
 # load previous config from training directories
 
 # if no custom path to config file is passed, try fetching config file at default location
-conf_path = (
-    os.path.join(
-        dirname, test_config.weight_folder, test_config.experiment_name, "conf.json"
-    )
-    if not test_config.load_config
-    else test_config.load_config
-)
+conf_path = os.path.join(dirname, test_config.weight_folder, test_config.experiment_name, "conf.json") if not test_config.load_config else test_config.load_config
 if os.path.isfile(conf_path):
     with open(conf_path) as file:
         model_config = json.loads(file.read())
@@ -79,9 +70,7 @@ if os.path.isfile(conf_path):
             "min_cov",
             "max_cov",
         ]
-        conf_dict = {
-            key: val for key, val in model_config.items() if key not in no_overwrite
-        }
+        conf_dict = {key: val for key, val in model_config.items() if key not in no_overwrite}
         for key, val in vars(test_config).items():
             if key in no_overwrite:
                 conf_dict[key] = val
@@ -109,29 +98,6 @@ if __name__ == "__main__":
 writer = SummaryWriter(os.path.join(config.res_dir, config.experiment_name))
 
 
-if config.use_custom:
-    print("Testing on custom data samples")
-    # define a dictionary for the custom sample, with customized ROI and time points
-    custom = [
-        {
-            "input": {
-                "S1": [
-                    get_pairedS1(targ_s2, config.root1, mod="s1", time=tdx)
-                    for tdx in range(0, 3)
-                ],
-                "S2": [
-                    get_pairedS1(targ_s2, config.root1, mod="s2", time=tdx)
-                    for tdx in range(0, 3)
-                ],
-            },
-            "target": {
-                "S1": [get_pairedS1(targ_s2, config.root1, mod="s1")],
-                "S2": [targ_s2],
-            },
-        }
-    ]
-
-
 def main(config):
     device = torch.device(config.device)
     prepare_output(config)
@@ -142,37 +108,20 @@ def main(config):
     print(f"TOTAL TRAINABLE PARAMETERS: {config.N_params}\n")
     print(model)
 
-    # get data loader
-    if config.pretrain:
-        dt_test = SEN12MSCR(
-            os.path.expanduser(config.root3),
-            split="test",
-            region=config.region,
-            sample_type=config.sample_type,
-        )
-    else:
-        imported_path = (
-            None
-            if any((config.min_cov != 0, config.max_cov != 1))
-            else import_from_path("test", config)
-        )
-        dt_test = SEN12MSCRTS(
-            os.path.expanduser(config.root2),
-            split="test",
-            region=config.region,
-            sample_type=config.sample_type,
-            n_input_samples=config.input_t,
-            import_data_path=imported_path,
-            sampler="fixed",
-            custom_samples=None if not config.use_custom else custom,
-        )
+    imported_path = None if any((config.min_cov != 0, config.max_cov != 1)) else import_from_path("test", config)
+    dt_test = UnCRtainTS_from_hdf5(
+        os.path.expanduser(config.root2),
+        split="test",
+        region=config.region,
+        sample_type=config.sample_type,
+        n_input_samples=config.input_t,
+        import_data_path=imported_path,
+        sampler="fixed",
+        custom_samples=None if not config.use_custom else custom,
+    )
 
-    dt_test = torch.utils.data.Subset(
-        dt_test, range(0, min(config.max_samples_count, len(dt_test)))
-    )
-    test_loader = torch.utils.data.DataLoader(
-        dt_test, batch_size=config.batch_size, shuffle=False
-    )
+    dt_test = torch.utils.data.Subset(dt_test, range(0, min(config.max_samples_count, len(dt_test))))
+    test_loader = torch.utils.data.DataLoader(dt_test, batch_size=config.batch_size, shuffle=False)
 
     # Load weights
     ckpt_n = f"_epoch_{config.resume_at}" if config.resume_at > 0 else ""
@@ -198,9 +147,7 @@ def main(config):
         os.path.join(config.res_dir, config.experiment_name),
         split="test",
     )
-    print(
-        f"\nLogged test metrics to path {os.path.join(config.res_dir, config.experiment_name)}"
-    )
+    print(f"\nLogged test metrics to path {os.path.join(config.res_dir, config.experiment_name)}")
 
 
 if __name__ == "__main__":

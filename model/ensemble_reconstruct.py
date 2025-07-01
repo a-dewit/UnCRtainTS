@@ -25,7 +25,7 @@ from train_reconstruct import (
     save_results,
 )
 
-from data.dataLoader import SEN12MSCRTS
+from data.uncrtaints_dataloader import UnCRtainTS_from_hdf5
 
 epoch = 1
 root = "/home/data/"  # path to directory containing dataset
@@ -33,9 +33,7 @@ mode = "test"  # split to evaluate on
 in_time = 3  # length of input time series
 region = "all"  # region of areas of interest
 max_samples = 1e9  # maximum count of samples to consider
-uncertainty = (
-    "both"  # e.g. 'aleatoric', 'epistemic', 'both' --- only matters if ensemble==True
-)
+uncertainty = "both"  # e.g. 'aleatoric', 'epistemic', 'both' --- only matters if ensemble==True
 ensemble = True  # whether to compute ensemble mean and var or not
 pixelwise = True  # whether to summarize errors and variances for image-based AUCE and UCE or keep pixel-based statistics
 export_path = None  # where to export ensemble statistics, set to None if no writing to files is desired
@@ -74,12 +72,7 @@ def prepare_data_multi(batch, device, batch_size=1, use_sar=True):
         if batch_size > 1:
             in_S1_td = torch.stack(in_S1_td).T
         x = torch.cat((torch.stack(in_S1, dim=1), torch.stack(in_S2, dim=1)), dim=2)
-        dates = (
-            torch.stack((torch.tensor(in_S1_td), torch.tensor(in_S2_td)))
-            .float()
-            .mean(dim=0)
-            .to(device)
-        )
+        dates = torch.stack((torch.tensor(in_S1_td), torch.tensor(in_S2_td))).float().mean(dim=0).to(device)
     else:
         x = in_S2  # torch.stack(in_S2,dim=1)
         dates = torch.tensor(in_S2_td).float().to(device)
@@ -90,13 +83,7 @@ def prepare_data_multi(batch, device, batch_size=1, use_sar=True):
 def main():
     # list all predictions of the first ensemble member
     dataPath = ensemble_paths[0]
-    samples = natsorted(
-        [
-            os.path.join(dataPath, f)
-            for f in os.listdir(dataPath)
-            if (os.path.isfile(os.path.join(dataPath, f)) and "_pred.npy" in f)
-        ]
-    )
+    samples = natsorted([os.path.join(dataPath, f) for f in os.listdir(dataPath) if (os.path.isfile(os.path.join(dataPath, f)) and "_pred.npy" in f)])
 
     # collect sample-averaged uncertainties and errors
     img_meter = avg_img_metrics()
@@ -110,7 +97,7 @@ def main():
         f"generic_{in_time}_{mode}_{region}_s2cloudless_mask.npy",
     )
     import_data_path = import_data_path if os.path.isfile(import_data_path) else None
-    dt_test = SEN12MSCRTS(
+    dt_test = UnCRtainTS_from_hdf5(
         os.path.join(root, "SEN12MSCRTS"),
         split=mode,
         region=region,
@@ -163,14 +150,10 @@ def main():
                 var_ensemble = 1 / n_ensemble * np.sum(var, axis=0)
             elif uncertainty == "epistemic":
                 # compute average variance of ensemble predictions
-                var_ensemble = (
-                    1 / n_ensemble * np.sum(mean**2, axis=0) - mean_ensemble**2
-                )
+                var_ensemble = 1 / n_ensemble * np.sum(mean**2, axis=0) - mean_ensemble**2
             elif uncertainty == "both":
                 # combine both
-                var_ensemble = (
-                    1 / n_ensemble * np.sum(var + mean**2, axis=0) - mean_ensemble**2
-                )
+                var_ensemble = 1 / n_ensemble * np.sum(var + mean**2, axis=0) - mean_ensemble**2
             else:
                 raise NotImplementedError
         else:
@@ -203,9 +186,7 @@ def main():
             plot_img(mean_ensemble.unsqueeze(dim=0), "pred", plot_dir, file_id=idx)
             plot_img(x[0], "in", plot_dir, file_id=idx)
             plot_img(
-                var_ensemble.mean(dim=0, keepdims=True)
-                .expand(3, *var_ensemble.shape[1:])
-                .unsqueeze(dim=0),
+                var_ensemble.mean(dim=0, keepdims=True).expand(3, *var_ensemble.shape[1:]).unsqueeze(dim=0),
                 "var",
                 plot_dir,
                 file_id=idx,
@@ -214,9 +195,7 @@ def main():
             export(var_ensemble[None], "var", export_dir, file_id=idx)
 
     # compute UCE and AUCE
-    uce_l2, auce_l2 = compute_uce_auce(
-        vars_aleatoric, errs, len(vars_aleatoric), percent=5, l2=True, mode=mode, step=0
-    )
+    uce_l2, auce_l2 = compute_uce_auce(vars_aleatoric, errs, len(vars_aleatoric), percent=5, l2=True, mode=mode, step=0)
 
     # no need for a running mean here
     img_meter.value()["UCE SE"] = uce_l2.cpu().numpy().item()
@@ -224,9 +203,7 @@ def main():
 
     print(f"{mode} split image metrics: {img_meter.value()}")
     if export_path:
-        np.save(
-            os.path.join(export_path, f"pred_var_{uncertainty}.npy"), vars_aleatoric
-        )
+        np.save(os.path.join(export_path, f"pred_var_{uncertainty}.npy"), vars_aleatoric)
         np.save(os.path.join(export_path, "errors.npy"), errs)
         save_results(img_meter.value(), export_path, split=mode)
         print(f"Exported predictions to path {export_path}")
