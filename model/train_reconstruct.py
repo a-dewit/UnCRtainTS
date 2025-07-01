@@ -397,6 +397,7 @@ def iterate(model, data_loader, config, writer, mode="train", epoch=None, device
     t_start = time.time()
     for i, batch in enumerate(tqdm(data_loader)):
         step = (epoch - 1) * len(data_loader) + i
+        print("BATCH", batch['input']['S2 TD'])
 
         if config.sample_type == "cloudy_cloudfree":
             x, y, in_m, dates = prepare_data(batch, device, config)

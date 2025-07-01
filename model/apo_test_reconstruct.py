@@ -129,6 +129,14 @@ def main(config):
         dataset, batch_size=config.batch_size, shuffle=False
     )
 
+
+    print('DT TEST')
+    print(dataset[0]['input']['S2 TD'])
+    
+    print('TEST LOADER')
+    print(test_loader.dataset[0]['input']['S2 TD'])
+
+
     # Load weights
     ckpt_n = f"_epoch_{config.resume_at}" if config.resume_at > 0 else ""
     load_checkpoint(config, config.weight_folder, model, f"model{ckpt_n}")
