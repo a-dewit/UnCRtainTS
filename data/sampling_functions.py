@@ -50,7 +50,7 @@ def random_sampler(t_windows, coverage, clear_tresh=1e-3):
     return inputs_idx, cloudless_idx, coverage_match
 
 
-def sampler(sampling, t_windows, n_input_t, min_cov, max_cov, s1, s2, masks, coverage, clear_tresh=1e-3, earliest_idx=0, latext_idx=30):
+def sampler(sampling, t_windows, n_input_t, min_cov, max_cov, coverage, clear_tresh=1e-3, earliest_idx=0, latext_idx=30):
     if sampling == "random":
         inputs_idx, cloudless_idx, coverage_match = random_sampler(t_windows, coverage, clear_tresh)
     elif sampling == "fixedsubset":
@@ -58,20 +58,4 @@ def sampler(sampling, t_windows, n_input_t, min_cov, max_cov, s1, s2, masks, cov
     else:  # default to fixed sampler
         inputs_idx, cloudless_idx, coverage_match = fixed_sampler(n_input_t, min_cov, max_cov, coverage, clear_tresh)
 
-    input_s1, input_s2, input_masks = (
-        np.array(s1)[inputs_idx],
-        np.array(s2)[inputs_idx],
-        np.array(masks)[inputs_idx],
-    )
-    target_s1, target_s2, target_mask = (
-        np.array(s1)[cloudless_idx],
-        np.array(s2)[cloudless_idx],
-        np.array(masks)[cloudless_idx],
-    )
-
-    data = {
-        "input": [input_s1, input_s2, input_masks, inputs_idx],
-        "target": [target_s1, target_s2, target_mask, cloudless_idx],
-        "match": coverage_match,
-    }
-    return data
+    return inputs_idx, cloudless_idx, coverage_match

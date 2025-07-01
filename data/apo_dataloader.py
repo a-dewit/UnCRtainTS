@@ -160,6 +160,10 @@ class CIRCA_from_HDF5(Dataset):
             "idx_impaired_frames": patch["idx_impaired_frames"][:],
             "valid_obs": patch["valid_obs"][:],
         }
+
+        if self.num_channels != sample["S2"]["S2"].shape[1]:
+            sample["S2"]["S2"] = sample["S2"]["S2"][:, self.s2_channels, :, :]
+
         return self.format_item(sample)
 
     def __getitem__(
