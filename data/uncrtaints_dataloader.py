@@ -1,10 +1,33 @@
+import sys
 from pathlib import Path
+
+sys.path.append(str(Path(__file__).parents[1]))
+# s2cloudless: see https://github.com/sentinel-hub/sentinel2-cloud-detector
+import os
 from typing import Dict, List, Literal, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
+from pyproj.datadir import get_data_dir
 
-# s2cloudless: see https://github.com/sentinel-hub/sentinel2-cloud-detector
+# Vérifie et configure le chemin PROJ_DATA
+try:
+    from pyproj import Proj
+
+    Proj(init="epsg:4326")
+except Exception:
+    proj_data = os.path.join(os.path.dirname(get_data_dir()), "proj.db")
+    if os.path.exists(proj_data):
+        os.environ["PROJ_LIB"] = os.path.dirname(proj_data)
+    else:
+        # Essaye de trouver le chemin alternatif
+        import pyproj
+
+        proj_data = os.path.join(os.path.dirname(pyproj.__file__), "proj_dir", "share", "proj")
+        if os.path.exists(proj_data):
+            os.environ["PROJ_LIB"] = proj_data
+
+# Maintenant importer s2cloudless
 from s2cloudless import S2PixelCloudDetector
 
 from data.circa_dataloader import CIRCA_from_HDF5
@@ -192,20 +215,14 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
             target_s2: NDArray = s2[cloudless_idx]
             target_mask: NDArray = masks[cloudless_idx]
 
-            # Prepare time deltas
-            in_s1_td: List[int] = [s1_td[idx] for idx in inputs_idx]
-            in_s2_td: List[int] = [s2_td[idx] for idx in inputs_idx]
-            tg_s1_td: List[int] = [s1_td[cloudless_idx]]
-            tg_s2_td: List[int] = [s2_td[cloudless_idx]]
-
             return {
                 "input": {
                     "S1": list(input_s1),
                     "S2": input_s2,
                     "masks": list(input_masks),
                     "coverage": [np.mean(mask) for mask in input_masks],
-                    "S1 TD": in_s1_td,
-                    "S2 TD": in_s2_td,
+                    "S1 TD": [s1_td[idx] for idx in inputs_idx],
+                    "S2 TD": [s2_td[idx] for idx in inputs_idx],
                     "idx": inputs_idx,
                 },
                 "target": {
@@ -213,9 +230,25 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
                     "S2": target_s2,
                     "masks": [target_mask],
                     "coverage": [np.mean(target_mask)],
-                    "S1 TD": tg_s1_td,
-                    "S2 TD": tg_s2_td,
+                    "S1 TD": [s1_td[cloudless_idx]],
+                    "S2 TD": [s2_td[cloudless_idx]],
                     "idx": cloudless_idx,
                 },
                 "coverage bin": coverage_match,
             }
+
+
+if __name__ == "__main__":
+    # Example usage
+    path_dataset_circa = Path("/home/SPeillet/Downloads/data")
+    hdf5_file = path_dataset_circa / "circa_cloud_removal.hdf5"
+
+    # Import data from HDF5 file
+    dataset = UnCRtainTS_from_hdf5(
+        hdf5_file=hdf5_file,
+        phase="all",
+        shuffle=False,
+        channels="all",
+    )
+    sample = next(iter(dataset))
+    print(sample.keys())

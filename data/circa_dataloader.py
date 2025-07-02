@@ -1,5 +1,9 @@
 import datetime as dt
+import sys
 from pathlib import Path
+
+sys.path.append(str(Path(__file__).parents[1]))
+
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import h5py
@@ -41,7 +45,7 @@ def str2date(date_string: str) -> dt.date:
         >>> str2date("20200101")
         datetime.date(2020, 1, 1)
     """
-    return dt.datetime.strptime(date_string, "%Y%m%d").date()
+    return dt.datetime.strptime(date_string, "%Y%m%d")
 
 
 class CIRCA_from_HDF5(Dataset):
