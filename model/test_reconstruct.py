@@ -109,8 +109,10 @@ def main(config):
     imported_path = None if any((config.min_cov != 0, config.max_cov != 1)) else import_from_path("test", config)
 
     dt_test = UnCRtainTS_from_hdf5(
+        hdf5_file=config.hdf5_file,
         phase='test',
-        hdf5_file=config.hdf5_file
+        shuffle=False,
+        channels="all",
     )
 
     #dt_test = torch.utils.data.Subset(dt_test, range(0, min(config.max_samples_count, len(dt_test))))

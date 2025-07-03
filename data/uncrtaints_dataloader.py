@@ -252,5 +252,8 @@ if __name__ == "__main__":
         shuffle=False,
         channels="all",
     )
+    print(len(dataset))
     sample = next(iter(dataset))
-    print(sample.keys())
+    print(sample['input']['S1 TD'][0])
+    s2 = next(iter(dataset))
+    print(s2['input']['S1 TD'][0])
