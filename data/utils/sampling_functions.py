@@ -83,42 +83,8 @@ def fixedsubset_sampler(n_input_t: int, min_cov: float, max_cov: float, coverage
     return inputs_idx, cloudless_idx, coverage_match
 
 
-def random_sampler(t_windows: List[List[int]], coverage: CoverageArray, clear_tresh: float = 1e-3) -> Tuple[IndexList, int, bool]:
-    """
-    Randomly sample time points with temporal coherence.
-
-    Selects a random clear target and temporally adjacent inputs.
-
-    Args:
-        t_windows: List of temporal windows for sampling
-        coverage: Array of cloud coverage values
-        clear_tresh: Maximum coverage threshold for target sample
-
-    Returns:
-        Tuple containing input indices, target index, and coverage match flag
-    """
-    # Find clear samples (below threshold)
-    is_clear = np.argwhere(np.array(coverage) < clear_tresh).flatten()
-
-    # Select random clear sample or fallback to minimum coverage
-    try:
-        cloudless_idx = is_clear[np.random.randint(0, len(is_clear))]
-    except (ValueError, IndexError):
-        cloudless_idx = np.array(coverage).argmin()
-
-    # Find temporal windows containing the target
-    windows = [window for window in t_windows if cloudless_idx in window]
-
-    # Select middle window for balanced temporal distribution
-    inputs_idx = [input_t for input_t in windows[len(windows) // 2] if input_t != cloudless_idx]
-
-    # Note: Coverage criteria not enforced in random mode
-    return inputs_idx, cloudless_idx, True
-
-
 def sampler(
     sampling: SamplingMethod,
-    t_windows: List[List[int]],
     n_input_t: int,
     min_cov: float,
     max_cov: float,
@@ -144,9 +110,7 @@ def sampler(
     Returns:
         Tuple containing input indices, target index, and coverage match flag
     """
-    if sampling == "random":
-        return random_sampler(t_windows, coverage, clear_tresh)
-    elif sampling == "fixedsubset":
+    if sampling == "fixedsubset":
         return fixedsubset_sampler(n_input_t, min_cov, max_cov, coverage, clear_tresh, earliest_idx, latext_idx)
     else:  # Default to fixed sampling
         return fixed_sampler(n_input_t, min_cov, max_cov, coverage, clear_tresh)

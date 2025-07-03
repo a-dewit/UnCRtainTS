@@ -187,11 +187,7 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
         else:
             masks = patch_data["S2"]["cloud_prob"][patch_data["idx_good_frames"]]
 
-        print('MASKS')
-        print(masks.shape)
-        coverage = [mask.mean((2,3)) for mask in masks] #[np.mean(mask) for mask in masks]
-        print(coverage.shape, coverage)
-        print("coucou")
+        coverage = [mask.mean() for mask in masks] #[np.mean(mask) for mask in masks]
         # Process and normalize data
         s1 = np.asarray([process_SAR(img, self.method) for img in s1])
         s2 = np.asarray([process_MS(img, self.method) for img in s2])
@@ -210,7 +206,7 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
             inputs_idx: NDArray
             cloudless_idx: NDArray
             coverage_match: bool
-            inputs_idx, cloudless_idx, coverage_match = sampler(self.sampling, self.t_windows, self.n_input_t, self.min_cov, self.max_cov, coverage, clear_tresh=CLEAR_THRESHOLD)
+            inputs_idx, cloudless_idx, coverage_match = sampler(self.sampling, self.n_input_t, self.min_cov, self.max_cov, coverage, clear_tresh=CLEAR_THRESHOLD)
 
             # Prepare input and target data
             input_s1: NDArray = s1[inputs_idx]
@@ -220,12 +216,13 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
             target_s2: NDArray = s2[cloudless_idx]
             target_mask: NDArray = masks[cloudless_idx]
 
+            #print(t.shape)
             return {
                 "input": {
                     "S1": list(input_s1),
                     "S2": input_s2,
                     "masks": list(input_masks),
-                    "coverage": [mask.mean((2,3)) for mask in input_masks], #[np.mean(mask) for mask in input_masks],
+                    "coverage": [mask.mean() for mask in input_masks], #[np.mean(mask) for mask in input_masks],
                     "S1 TD": [s1_td[idx] for idx in inputs_idx],
                     "S2 TD": [s2_td[idx] for idx in inputs_idx],
                     "idx": inputs_idx,
@@ -234,7 +231,7 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
                     "S1": [target_s1],
                     "S2": target_s2,
                     "masks": [target_mask],
-                    "coverage": [target_mask.mean((2,3))], #[np.mean(target_mask)],
+                    "coverage": [target_mask.mean()], #[np.mean(target_mask)],
                     "S1 TD": [s1_td[cloudless_idx]],
                     "S2 TD": [s2_td[cloudless_idx]],
                     "idx": cloudless_idx,
