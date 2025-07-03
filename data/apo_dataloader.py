@@ -27,6 +27,14 @@ def str2date(date_string: str) -> dt.date:
     """Converts a date in string format to datetime format."""
     return dt.datetime.strptime(date_string, "%Y%m%d").date()
 
+def recursive_todevice(x, device):
+    if isinstance(x, torch.Tensor):
+        return x.to(device)
+    elif isinstance(x, dict):
+        return {k: recursive_todevice(v, device) for k, v in x.items()}
+    else:
+        return [recursive_todevice(c, device) for c in x]
+
 
 class CIRCA_from_HDF5(Dataset):
     """
@@ -135,18 +143,22 @@ class CIRCA_from_HDF5(Dataset):
         """
         S1_LAUNCH = str2date("20140403")
         s1_td = [(str2date(date) - S1_LAUNCH).days for date in sample["S1"]["S1_dates"][:10]]
+        s1_td = recursive_todevice(torch.tensor(s1_td), 'cuda')
         s2_td = [(str2date(date) - S1_LAUNCH).days for date in sample["S1"]["S1_dates"][:10]]
+        S2_td  = recursive_todevice(torch.tensor(s2_td), 'cuda')
+
+        s1_dates = torch.tensor([date.astype(np.int64) for date in sample["S1"]["S1_dates"][:10]])
+        s2_dates = torch.tensor([date.astype(np.int64) for date in sample["S2"]["S2_dates"][:10]])
 
         return {
             "input": {
                 "S1": torch.from_numpy(sample["S1"]["S1"][:10,:,:,:].astype(np.float32)),  # T * C * H * W
-                "S1_dates": np.array([date.astype(np.int64) for date in sample["S1"]["S1_dates"][:10]]),
-                #np.array([str2date(date) for date in sample["S1"]["S1_dates"][:10]]),
+                "S1_dates": s1_dates,
                 "S2": torch.from_numpy(sample["S2"]["S2"][:10,:,:,:].astype(np.float32)),  # T * C * H * W
-                "S2_dates": np.array([date.astype(np.int64) for date in sample["S2"]["S2_dates"][:10]]),
-                #np.array([str2date(date) for date in sample["S2"]["S2_dates"][:10]]),
-                "S1 TD": np.array(s1_td),
-                "S2 TD": np.array(s2_td),
+                "S2_dates": s2_dates,
+                #np.array([date.astype(np.int64) for date in sample["S2"]["S2_dates"][:10]]),
+                "S1 TD": s1_td,
+                "S2 TD": S2_td, 
                 "cloud_mask": torch.from_numpy(np.expand_dims(sample["S2"]["cloud_mask"][:10], axis=1).astype(np.float32)),
                 "cloud_prob": torch.from_numpy(np.expand_dims(sample["S2"]["cloud_prob"][:10], axis=1).astype(np.float32)),
                 "idx_cloudy_frames": torch.from_numpy(sample["idx_cloudy_frames"][:10]),
@@ -176,7 +188,9 @@ class CIRCA_from_HDF5(Dataset):
             "valid_obs": patch["valid_obs"][:],
         }
         t = self.format_item(sample)
-        print(t['input']['S1_dates'].dtype, t['input']['S1_dates'][0])
+        for k in t['input'].keys():
+            if (k == 'S1_dates') or (k=='S1 TD'):
+                print(k, t['input'][k][0])
         return self.format_item(sample)
 
     def __getitem__(
