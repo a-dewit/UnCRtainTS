@@ -1,0 +1,24 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": "${command:pickArgs}"
+        },
+        {
+            "name": "test reconstruct",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "model/test_reconstruct.py ",
+            "console": "integratedTerminal",
+            "args": "--experiment_name utae --res_dir /media/DATA/ADeWit/3STR/inference --weight_folder /media/DATA/ADeWit/3STR/models --hdf5_file /media/DATA/ADeWit/3STR/dataset/toy_circa_ligth_0.5.hdf5"
+        }
+    ]
+}
