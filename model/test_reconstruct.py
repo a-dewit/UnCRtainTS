@@ -91,8 +91,6 @@ with open(os.path.join(experime_dir, "conf.json"), "w") as file:
 
 # seed everything
 seed_packages(config.rdm_seed)
-if __name__ == "__main__":
-    pprint.pprint(config)
 
 # instantiate tensorboard logger
 writer = SummaryWriter(os.path.join(config.res_dir, config.experiment_name))
@@ -106,21 +104,16 @@ def main(config):
     model = model.to(device)
     config.N_params = utils.get_ntrainparams(model)
     print(f"TOTAL TRAINABLE PARAMETERS: {config.N_params}\n")
-    print(model)
+    #print(model)
 
     imported_path = None if any((config.min_cov != 0, config.max_cov != 1)) else import_from_path("test", config)
+
     dt_test = UnCRtainTS_from_hdf5(
-        os.path.expanduser(config.root2),
-        split="test",
-        region=config.region,
-        sample_type=config.sample_type,
-        n_input_samples=config.input_t,
-        import_data_path=imported_path,
-        sampler="fixed",
-        custom_samples=None if not config.use_custom else custom,
+        phase='test',
+        hdf5_file=config.hdf5_file
     )
 
-    dt_test = torch.utils.data.Subset(dt_test, range(0, min(config.max_samples_count, len(dt_test))))
+    #dt_test = torch.utils.data.Subset(dt_test, range(0, min(config.max_samples_count, len(dt_test))))
     test_loader = torch.utils.data.DataLoader(dt_test, batch_size=config.batch_size, shuffle=False)
 
     # Load weights

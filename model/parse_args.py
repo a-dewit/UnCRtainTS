@@ -18,6 +18,12 @@ def create_parser(mode="train"):
         help="Name of the current experiment",
     )
 
+    parser.add_argument(
+        "--hdf5_file",
+        default="/media/DATA/ADeWit/3STR/dataset/toy_circa_ligth_0.5.hdf5",
+        help="Path for hdf5 file",
+    )
+
     # fast switching between default arguments, depending on train versus test mode
     if mode == "train":
         parser.add_argument(

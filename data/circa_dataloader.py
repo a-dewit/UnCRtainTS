@@ -24,7 +24,7 @@ MIN_SEQ_LENGTH: int = 5
 SEED: int = 42
 
 # Type aliases for better readability
-DateArray = NDArray[dt.date]
+#DateArray = NDArray[dt.date]
 TensorDict = Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]
 SampleDict = Dict[str, Union[NDArray, Dict[str, NDArray], List[str]]]
 PhaseType = Literal["train", "val", "test", "train+val", "all"]
@@ -309,8 +309,8 @@ class CIRCA_from_HDF5(Dataset):
 
 if __name__ == "__main__":
     # Example usage
-    path_dataset_circa = Path("/home/SPeillet/Downloads/data")
-    hdf5_file = path_dataset_circa / "circa_cloud_removal.hdf5"
+    path_dataset_circa = Path("/media/DATA/ADeWit/3STR/dataset")
+    hdf5_file = path_dataset_circa / "toy_circa_ligth_0.5.hdf5"
 
     # Import data from HDF5 file
     dataset = CIRCA_from_HDF5(
@@ -319,5 +319,7 @@ if __name__ == "__main__":
         shuffle=False,
         channels="all",
     )
+    print('DATASET', dataset.patches_dataset)
     sample = next(iter(dataset))
     print(sample.keys())
+    print(sample['S1']['S1_dates'])

@@ -115,6 +115,8 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
             channels=channels,
         )
 
+        print(self.hdf5_file)
+
         # Validate inputs
         assert self.__len__() > 0, "No data found in the HDF5 file"
         assert sample_type in ["generic", "cloudy_cloudfree"], "Invalid sample type!"
@@ -185,8 +187,11 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
         else:
             masks = patch_data["S2"]["cloud_prob"][patch_data["idx_good_frames"]]
 
-        coverage: List[float] = [np.mean(mask) for mask in masks]
-
+        print('MASKS')
+        print(masks.shape)
+        coverage = [mask.mean((2,3)) for mask in masks] #[np.mean(mask) for mask in masks]
+        print(coverage.shape, coverage)
+        print("coucou")
         # Process and normalize data
         s1 = np.asarray([process_SAR(img, self.method) for img in s1])
         s2 = np.asarray([process_MS(img, self.method) for img in s2])
@@ -220,7 +225,7 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
                     "S1": list(input_s1),
                     "S2": input_s2,
                     "masks": list(input_masks),
-                    "coverage": [np.mean(mask) for mask in input_masks],
+                    "coverage": [mask.mean((2,3)) for mask in input_masks], #[np.mean(mask) for mask in input_masks],
                     "S1 TD": [s1_td[idx] for idx in inputs_idx],
                     "S2 TD": [s2_td[idx] for idx in inputs_idx],
                     "idx": inputs_idx,
@@ -229,7 +234,7 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
                     "S1": [target_s1],
                     "S2": target_s2,
                     "masks": [target_mask],
-                    "coverage": [np.mean(target_mask)],
+                    "coverage": [target_mask.mean((2,3))], #[np.mean(target_mask)],
                     "S1 TD": [s1_td[cloudless_idx]],
                     "S2 TD": [s2_td[cloudless_idx]],
                     "idx": cloudless_idx,
