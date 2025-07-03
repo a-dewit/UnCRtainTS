@@ -115,8 +115,6 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
             channels=channels,
         )
 
-        print(self.hdf5_file)
-
         # Validate inputs
         assert self.__len__() > 0, "No data found in the HDF5 file"
         assert sample_type in ["generic", "cloudy_cloudfree"], "Invalid sample type!"
@@ -219,7 +217,7 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
             #print(t.shape)
             return {
                 "input": {
-                    "S1": list(input_s1),
+                    "S1": input_s1,
                     "S2": input_s2,
                     "masks": list(input_masks),
                     "coverage": [mask.mean() for mask in input_masks], #[np.mean(mask) for mask in input_masks],
@@ -238,6 +236,9 @@ class UnCRtainTS_from_hdf5(CIRCA_from_HDF5):
                 },
                 "coverage bin": coverage_match,
             }
+    
+    def __len__(self):
+        return len(self.patches_dataset)
 
 
 if __name__ == "__main__":

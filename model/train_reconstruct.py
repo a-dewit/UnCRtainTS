@@ -203,21 +203,23 @@ def prepare_data_multi(batch, device, config):
     in_S2_td = recursive_todevice(batch["input"]["S2 TD"], device)
     if config.batch_size > 1:
         in_S2_td = torch.stack(in_S2_td).T
-    in_m = torch.stack(recursive_todevice(batch["input"]["masks"], device)).swapaxes(0, 1)
+    in_m = torch.stack(recursive_todevice(batch["input"]["masks"], device)).swapaxes(0, 1)#.squeeze(2)
     target_S2 = recursive_todevice(batch["target"]["S2"], device)
-    y = torch.cat(target_S2, dim=0).unsqueeze(1)
+    y = target_S2 #torch.cat(target_S2, dim=0).unsqueeze(1)
 
     if config.use_sar:
         in_S1 = recursive_todevice(batch["input"]["S1"], device)
         in_S1_td = recursive_todevice(batch["input"]["S1 TD"], device)
         if config.batch_size > 1:
             in_S1_td = torch.stack(in_S1_td).T
-        x = torch.cat((torch.stack(in_S1, dim=1), torch.stack(in_S2, dim=1)), dim=2)
-        dates = torch.stack((torch.tensor(in_S1_td), torch.tensor(in_S2_td))).float().mean(dim=0).to(device)
+        x = torch.cat([in_S1, in_S2], dim=2) #torch.cat((torch.stack(in_S1, dim=1), torch.stack(in_S2, dim=1)), dim=2)
+        dates = torch.cat([in_S1_td, in_S2_td]).type(torch.float64).mean().to(device)
+        #dates = torch.stack((torch.tensor(in_S1_td), torch.tensor(in_S2_td))).float().mean(dim=0).to(device)
     else:
         x = torch.stack(in_S2, dim=1)
         dates = torch.tensor(in_S2_td).float().to(device)
 
+    print("x", x.shape, "y", y.shape, "in_m", in_m.shape, "dates", dates.shape)
     return x, y, in_m, dates
 
 

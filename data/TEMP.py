@@ -1,13 +1,21 @@
 import numpy as np
 import torch
 
-t = torch.zeros(2,1,3,3)
+t1 = torch.zeros(4, 3, 10, 3, 3)
+t2 = torch.zeros(4, 3, 4, 3, 3)
+u = torch.cat([t1, t2], dim=2)
+#print(u.shape)
 
-print(t.shape)
+p = torch.tensor([[3088, 3088, 3088],
+        [3088, 3136, 3143],
+        [3088, 3088, 3143],
+        [3088, 3112, 3143],
+        [3080, 3085, 3090],
+        [3090, 3135, 3145],
+        [3085, 3090, 3145],
+        [3090, 3110, 3145]], device='cuda:0')
 
-m = t.mean((0), keepdims=True)
-print(m)
-print(m.shape)
-
-n = t.mean((2,3))
-print(n.shape, n)
+print(p.shape)
+p = p.type(torch.float64)
+m = p.mean()
+print(m.shape, m)
